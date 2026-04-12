@@ -4,11 +4,549 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-  moduleFormat    = "cjs"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum UserRole {
+  LEARNER
+  TEACHER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum VocabStatus {
+  NEW
+  EASY
+  MEDIUM
+  HARD
+  MASTERED
+}
+
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum SpeakingSessionStatus {
+  WAITING
+  MATCHED
+  ENDED
+}
+
+enum VerificationCodeType {
+  REGISTER
+  FORGOT_PASSWORD
+  LOGIN
+  DISABLE_2FA
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ClassRole {
+  STUDENT
+  ASSISTANT
+}
+
+enum MediaType {
+  VIDEO
+  ARTICLE
+}
+
+enum SessionMode {
+  DICTATION
+  SHADOWING
+}
+
+model User {
+  id          String     @id @default(uuid()) @db.Uuid
+  email       String     @unique
+  password    String
+  fullName    String?    @map("full_name")
+  phoneNumber String?    @map("phone_number")
+  avatarUrl   String?    @map("avatar_url")
+  totpSecret  String?    @map("totp_secret")
+  role        UserRole   @default(LEARNER)
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+
+  // Relations
+  userStat               UserStat?
+  learningDaily          UserLearningDaily[]
+  devices                Device[]
+  refreshTokens          RefreshToken[]
+  createdVocabLists      VocabularyList[]         @relation("CreatedBy")
+  createdVocabularies    Vocabulary[]             @relation("VocabCreatedBy")
+  vocabAccess            VocabularyListAccess[]   @relation("AccessTarget")
+  vocabAccessGranted     VocabularyListAccess[]   @relation("AccessGranter")
+  vocabProgress          UserVocabularyProgress[]
+  learningSessions       UserLearningSession[]
+  articlesCreated        Article[]
+  articleProgress        UserArticleProgress[]
+  speakingSessionsHosted SpeakingSession[]
+  speakingParticipants   SpeakingParticipant[]
+  classesOwned           Class[]
+  classMemberships       ClassMember[]
+  listProgress           UserListProgress[]
+
+  @@map("users")
+}
+
+model UserStat {
+  userId            String    @id @map("user_id") @db.Uuid
+  totalWordsLearned Int       @default(0) @map("total_words_learned")
+  totalMastered     Int       @default(0) @map("total_mastered")
+  totalNeedReview   Int       @default(0) @map("total_need_review")
+  totalReviews      Int       @default(0) @map("total_reviews")
+  learningStreak    Int       @default(0) @map("learning_streak")
+  lastLearnDate     DateTime? @map("last_learn_date") @db.Date
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_stats")
+}
+
+model UserLearningDaily {
+  id            Int      @id @default(autoincrement())
+  userId        String   @map("user_id") @db.Uuid
+  listId        String   @map("list_id") @db.Uuid
+  date          DateTime @db.Date
+  wordsLearned  Int      @default(0) @map("words_learned")
+  wordsReviewed Int      @default(0) @map("words_reviewed")
+  correctCount  Int      @default(0) @map("correct_count")
+  wrongCount    Int      @default(0) @map("wrong_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User           @relation(fields: [userId], references: [id])
+  list VocabularyList @relation(fields: [listId], references: [id])
+
+  @@unique([userId, listId, date])
+  @@map("user_learning_daily")
+}
+
+model Device {
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id") @db.Uuid
+  userAgent    String   @map("user_agent")
+  ip           String
+  isActive     Boolean  @default(true) @map("is_active")
+  lastActiveAt DateTime @map("last_active_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user          User           @relation(fields: [userId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@map("devices")
+}
+
+model RefreshToken {
+  token     String   @id
+  userId    String   @map("user_id") @db.Uuid
+  deviceId  Int      @map("device_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model VerificationCode {
+  id        Int                  @id @default(autoincrement())
+  email     String
+  code      String
+  type      VerificationCodeType
+  expiresAt DateTime
+  createdAt DateTime             @default(now())
+
+  @@index([email, code, type])
+  @@index([expiresAt])
+  @@map("verification_codes")
+}
+
+model VocabularyTopic {
+  id           String  @id @default(uuid()) @db.Uuid
+  name         String
+  description  String? @db.Text
+  thumbnailUrl String? @map("thumbnail_url")
+
+  lists VocabularyList[]
+
+  @@map("vocabulary_topics")
+}
+
+model VocabularyList {
+  id          String    @id @default(uuid()) @db.Uuid
+  topicId     String    @map("topic_id") @db.Uuid
+  description String?   @db.Text
+  createdBy   String    @map("created_by") @db.Uuid
+  name        String
+  level       Level?
+  isPublic    Boolean   @default(true) @map("is_public")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  topic        VocabularyTopic          @relation(fields: [topicId], references: [id])
+  creator      User                     @relation("CreatedBy", fields: [createdBy], references: [id])
+  items        VocabularyListItem[]
+  accessLogs   VocabularyListAccess[]
+  userProgress UserVocabularyProgress[]
+  dailyStats   UserLearningDaily[]
+  classes      ClassVocabularyList[]
+  userListProg UserListProgress[]
+
+  @@map("vocabulary_lists")
+}
+
+model Vocabulary {
+  id              String    @id @default(uuid()) @db.Uuid
+  word            String
+  phonetic        String?
+  partOfSpeech    String?   @map("part_of_speech")
+  meaningVi       String    @map("meaning_vi") @db.Text
+  meaningEn       String?   @map("meaning_en") @db.Text
+  exampleEn       String?   @map("example_en") @db.Text
+  exampleVi       String?   @map("example_vi") @db.Text
+  imageUrl        String?   @map("image_url")
+  audioUrl        String?   @map("audio_url")
+  audioExampleUrl String?   @map("audio_example_url")
+  level           Level?
+  createdBy       String    @map("created_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  creator      User                     @relation("VocabCreatedBy", fields: [createdBy], references: [id])
+  listItems    VocabularyListItem[]
+  userProgress UserVocabularyProgress[]
+  mediaLinks   MediaVocabulary[]
+
+  @@unique([word, partOfSpeech])
+  @@map("vocabularies")
+}
+
+model VocabularyListItem {
+  listId       String @map("list_id") @db.Uuid
+  vocabularyId String @map("vocabulary_id") @db.Uuid
+  orderIndex   Int    @default(0) @map("order_index")
+
+  list       VocabularyList @relation(fields: [listId], references: [id])
+  vocabulary Vocabulary     @relation(fields: [vocabularyId], references: [id])
+
+  @@id([listId, vocabularyId])
+  @@map("vocabulary_list_items")
+}
+
+model VocabularyListAccess {
+  id        Int      @id @default(autoincrement())
+  listId    String   @map("list_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  classId   String?  @map("class_id") @db.Uuid
+  grantedBy String   @map("granted_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  list    VocabularyList @relation(fields: [listId], references: [id])
+  user    User           @relation("AccessTarget", fields: [userId], references: [id])
+  class   Class?         @relation(fields: [classId], references: [id])
+  granter User           @relation("AccessGranter", fields: [grantedBy], references: [id])
+
+  @@unique([listId, userId])
+  @@unique([listId, classId]) //có thể conflict
+  @@map("vocabulary_list_access")
+}
+
+model UserVocabularyProgress {
+  id             Int         @id @default(autoincrement())
+  userId         String      @map("user_id") @db.Uuid
+  vocabularyId   String      @map("vocabulary_id") @db.Uuid
+  listId         String      @map("list_id") @db.Uuid
+  status         VocabStatus @default(NEW)
+  correctCount   Int         @default(0) @map("correct_count")
+  wrongCount     Int         @default(0) @map("wrong_count")
+  lastReviewedAt DateTime?   @map("last_reviewed_at")
+  nextReviewAt   DateTime?   @map("next_review_at")
+
+  user       User           @relation(fields: [userId], references: [id])
+  vocabulary Vocabulary     @relation(fields: [vocabularyId], references: [id])
+  list       VocabularyList @relation(fields: [listId], references: [id])
+
+  @@unique([userId, vocabularyId, listId])
+  @@index([userId, nextReviewAt])
+  @@map("user_vocabulary_progress")
+}
+
+model Video {
+  id           String    @id @default(uuid()) @db.Uuid
+  topic        String?
+  level        Level?
+  title        String
+  videoUrl     String    @map("video_url")
+  thumbnailUrl String?   @map("thumbnail_url")
+  durationSec  Int?      @map("duration_sec")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  sentences        VideoSentence[]
+  learningSessions UserLearningSession[]
+
+  @@map("videos")
+}
+
+model VideoSentence {
+  id         Int     @id @default(autoincrement())
+  videoId    String  @map("video_id") @db.Uuid
+  content    String  @db.Text
+  meaningVi  String? @map("meaning_vi") @db.Text
+  ipa        String?
+  startTime  Float   @map("start_time")
+  endTime    Float   @map("end_time")
+  orderIndex Int     @default(0) @map("order_index")
+
+  video            Video                 @relation(fields: [videoId], references: [id])
+  dictationResults UserDictationResult[]
+  shadowingResults UserShadowingResult[]
+
+  @@index([videoId, orderIndex])
+  @@map("video_sentences")
+}
+
+model UserLearningSession {
+  id         Int         @id @default(autoincrement())
+  userId     String      @map("user_id") @db.Uuid
+  videoId    String      @map("video_id") @db.Uuid
+  mode       SessionMode
+  wrongCount Int         @default(0) @map("wrong_count")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  finishedAt DateTime?   @map("finished_at")
+
+  user             User                  @relation(fields: [userId], references: [id])
+  video            Video                 @relation(fields: [videoId], references: [id])
+  dictationResults UserDictationResult[]
+  shadowingResults UserShadowingResult[]
+
+  @@map("user_learning_sessions")
+}
+
+model UserDictationResult {
+  id           Int      @id @default(autoincrement())
+  sessionId    Int      @map("session_id")
+  sentenceId   Int      @map("sentence_id")
+  userText     String?  @map("user_text") @db.Text
+  correctCount Int      @default(0) @map("correct_count")
+  wrongCount   Int      @default(0) @map("wrong_count")
+  isRevealed   Boolean  @default(false) @map("is_revealed")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  session  UserLearningSession @relation(fields: [sessionId], references: [id])
+  sentence VideoSentence       @relation(fields: [sentenceId], references: [id])
+
+  @@unique([sessionId, sentenceId])
+  @@map("user_dictation_results")
+}
+
+model UserShadowingResult {
+  id           Int      @id @default(autoincrement())
+  sessionId    Int      @map("session_id")
+  sentenceId   Int      @map("sentence_id")
+  audioUrl     String?  @map("audio_url")
+  score        Float?
+  feedbackJson String?  @map("feedback_json") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  session  UserLearningSession @relation(fields: [sessionId], references: [id])
+  sentence VideoSentence       @relation(fields: [sentenceId], references: [id])
+
+  @@unique([sessionId, sentenceId])
+  @@map("user_shadowing_results")
+}
+
+model ArticleGroup {
+  id           String    @id @default(uuid()) @db.Uuid
+  topic        String?
+  thumbnailUrl String?   @map("thumbnail_url")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  articles Article[]
+
+  @@map("article_groups")
+}
+
+model Article {
+  id             String        @id @default(uuid()) @db.Uuid
+  groupId        String        @map("group_id") @db.Uuid
+  level          Level
+  title          String
+  content        String        @db.Text
+  status         ArticleStatus @default(DRAFT)
+  publishedAt    DateTime?     @map("published_at")
+  audioUrl       String?       @map("audio_url")
+  readingTimeMin Int?          @map("reading_time_min")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  createdBy      String        @map("created_by") @db.Uuid
+  deletedAt      DateTime?     @map("deleted_at")
+
+  group    ArticleGroup          @relation(fields: [groupId], references: [id])
+  creator  User                  @relation(fields: [createdBy], references: [id])
+  progress UserArticleProgress[]
+
+  @@unique([groupId, level, id])
+  @@map("articles")
+}
+
+model MediaVocabulary {
+  vocabularyId String    @map("vocabulary_id") @db.Uuid
+  mediaId      String    @map("media_id") @db.Uuid
+  mediaType    MediaType @map("media_type")
+
+  // Polymorphic Relation — Xử lý ở Application Layer
+  vocabulary Vocabulary @relation(fields: [vocabularyId], references: [id])
+
+  @@id([vocabularyId, mediaId])
+  @@index([mediaId, mediaType])
+  @@map("media_vocabularies")
+}
+
+model UserArticleProgress {
+  id          Int       @id @default(autoincrement())
+  userId      String    @map("user_id") @db.Uuid
+  articleId   String    @map("article_id") @db.Uuid
+  progressPct Float     @default(0) @map("progress_pct")
+  completed   Boolean   @default(false)
+  lastReadAt  DateTime? @map("last_read_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  article Article @relation(fields: [articleId], references: [id])
+
+  @@unique([userId, articleId])
+  @@map("user_article_progress")
+}
+
+model SpeakingTopic {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique
+
+  sessions SpeakingSessionTopic[]
+
+  @@map("speaking_topics")
+}
+
+model SpeakingSession {
+  id         String                @id @default(uuid()) @db.Uuid
+  roomName   String                @map("room_name")
+  hostId     String                @map("host_id") @db.Uuid
+  level      Level
+  maxMembers Int                   @default(2) @map("max_members")
+  isPrivate  Boolean               @default(false) @map("is_private")
+  passcode   String?
+  status     SpeakingSessionStatus @default(WAITING)
+  createdAt  DateTime              @default(now()) @map("created_at")
+  endedAt    DateTime?             @map("ended_at")
+
+  host         User                   @relation(fields: [hostId], references: [id])
+  topics       SpeakingSessionTopic[]
+  participants SpeakingParticipant[]
+
+  @@map("speaking_sessions")
+}
+
+model SpeakingSessionTopic {
+  sessionId String @map("session_id") @db.Uuid
+  topicId   String @map("topic_id") @db.Uuid
+
+  session SpeakingSession @relation(fields: [sessionId], references: [id])
+  topic   SpeakingTopic   @relation(fields: [topicId], references: [id])
+
+  @@id([sessionId, topicId])
+  @@map("speaking_session_topics")
+}
+
+model SpeakingParticipant {
+  id        Int       @id @default(autoincrement())
+  sessionId String    @map("session_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  isOnline  Boolean   @default(true) @map("is_online")
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+
+  session SpeakingSession @relation(fields: [sessionId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+  @@map("speaking_participants")
+}
+
+model Class {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  teacherId String    @map("teacher_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  teacher    User                   @relation(fields: [teacherId], references: [id])
+  members    ClassMember[]
+  vocabLists ClassVocabularyList[]
+  accessLogs VocabularyListAccess[]
+
+  @@map("classes")
+}
+
+model ClassMember {
+  id       Int       @id @default(autoincrement())
+  classId  String    @map("class_id") @db.Uuid
+  userId   String    @map("user_id") @db.Uuid
+  role     ClassRole @default(STUDENT)
+  joinedAt DateTime  @default(now()) @map("joined_at")
+
+  class Class @relation(fields: [classId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([classId, userId])
+  @@map("class_members")
+}
+
+model ClassVocabularyList {
+  classId String @map("class_id") @db.Uuid
+  listId  String @map("list_id") @db.Uuid
+
+  class Class          @relation(fields: [classId], references: [id])
+  list  VocabularyList @relation(fields: [listId], references: [id])
+
+  @@id([classId, listId])
+  @@map("class_vocabulary_lists")
+}
+
+model UserListProgress {
+  id            Int       @id @default(autoincrement())
+  userId        String    @map("user_id") @db.Uuid
+  listId        String    @map("list_id") @db.Uuid
+  progressPct   Float     @map("progress_pct")
+  completed     Boolean
+  lastLearnedAt DateTime? @map("last_learned_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user User           @relation(fields: [userId], references: [id])
+  list VocabularyList @relation(fields: [listId], references: [id])
+
+  @@unique([userId, listId])
+  @@map("user_list_progress")
 }

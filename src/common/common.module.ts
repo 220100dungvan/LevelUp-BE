@@ -5,6 +5,7 @@ import { PrismaService } from '@/common/services/prisma.service'
 import { TokenService } from '@/common/services/token.service'
 import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
+import { JwtModule } from '@nestjs/jwt'
 
 const sharedServices = [PrismaService, TokenService]
 
@@ -19,5 +20,6 @@ const sharedServices = [PrismaService, TokenService]
     },
   ],
   exports: [...sharedServices],
+  imports: [JwtModule],
 })
 export class CommonModule {}
