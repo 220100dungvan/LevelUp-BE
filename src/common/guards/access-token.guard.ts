@@ -2,7 +2,7 @@ import { REQUEST_USER_KEY } from '@/common/constants/auth.constant'
 import { PrismaService } from '@/common/services/prisma.service'
 import { TokenService } from '@/common/services/token.service'
 import { AccessTokenPayload } from '@/common/types/jwt.type'
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common'
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
 
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
@@ -39,7 +39,7 @@ export class AccessTokenGuard implements CanActivate {
     }
   }
 
-  private async validateUserStatus(userId: number, request: any): Promise<void> {
+  private async validateUserStatus(_userId: number, _request: any): Promise<void> {
     // const user = await this.prismaService.user.findUnique({
     //   where: {
     //     id: userId,
@@ -50,11 +50,9 @@ export class AccessTokenGuard implements CanActivate {
     // if (!user) {
     //   throw new UnauthorizedException('Error.UserNotFound')
     // }
-
     // if (user.status === UserStatus.BLOCKED) {
     //   throw new ForbiddenException('Error.UserBlocked')
     // }
-
     // if (user.status === UserStatus.INACTIVE) {
     //   throw new UnauthorizedException('Error.UserInactive')
     // }
