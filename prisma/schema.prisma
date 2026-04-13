@@ -81,6 +81,7 @@ model User {
   phoneNumber String?    @map("phone_number")
   avatarUrl   String?    @map("avatar_url")
   totpSecret  String?    @map("totp_secret")
+  totpEnabled  Boolean @default(false)
   role        UserRole   @default(LEARNER)
   status      UserStatus @default(ACTIVE)
   createdAt   DateTime   @default(now()) @map("created_at")
@@ -181,6 +182,9 @@ model VerificationCode {
 
   @@index([email, code, type])
   @@index([expiresAt])
+
+  @@unique([email, type])
+
   @@map("verification_codes")
 }
 

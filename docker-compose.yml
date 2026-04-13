@@ -28,7 +28,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${postgresql://postgres:12345@postgres:5432/levelup_database?schema=public}
+      DATABASE_URL: "postgresql://postgres:12345@postgres:5432/levelup_database?schema=public"
       PORT: ${PORT:-3000}
     ports:
       - '${APP_PORT:-3000}:3000'

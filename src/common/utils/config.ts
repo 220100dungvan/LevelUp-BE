@@ -19,6 +19,9 @@ const configSchema = z.object({
   REFRESH_TOKEN_SECRET: z.string(),
   REFRESH_TOKEN_EXPIRES_IN: z.string(),
   API_KEY_SECRET: z.string(),
+  RESEND_API_KEY: z.string(),
+  APP_NAME: z.string(),
+  OTP_EXPIRES_IN: z.string(),
 })
 
 const configServer = configSchema.safeParse(process.env)

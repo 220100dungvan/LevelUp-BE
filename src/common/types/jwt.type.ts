@@ -1,7 +1,7 @@
 import { UserRoleType } from '@/common/constants/auth.constant'
 
 export interface AccessTokenPayloadCreate {
-  userId: number
+  userId: string
   deviceId: number
   role: UserRoleType
 }
@@ -12,7 +12,7 @@ export interface AccessTokenPayload extends AccessTokenPayloadCreate {
 }
 
 export interface RefreshTokenPayloadCreate {
-  userId: number
+  userId: string
 }
 
 export interface RefreshTokenPayload extends RefreshTokenPayloadCreate {
