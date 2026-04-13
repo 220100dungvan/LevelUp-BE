@@ -61,6 +61,23 @@ $ npm run test:cov
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
+### CI/CD
+
+This repository now includes GitHub Actions for continuous integration and delivery:
+
+- CI runs on every pull request and push to `main` or `develop`.
+- CI installs dependencies, checks lint, runs tests, and builds the app.
+- CD builds a Docker image and publishes it to GitHub Container Registry as `ghcr.io/<owner>/<repo>`.
+- On `main`, the image is tagged as `latest`; on `develop`, it is tagged as `develop`; on version tags like `v1.2.3`, a semver tag is also published.
+- To prevent direct pushes to `main`, protect the branch in GitHub repository settings and require pull requests for merges.
+
+To run the container locally:
+
+```bash
+docker build -t levelup-be .
+docker run -p 3000:3000 levelup-be
+```
+
 If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
 
 ```bash
