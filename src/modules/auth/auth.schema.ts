@@ -29,9 +29,9 @@ export const RegisterResSchema = z.object({
   avatarUrl: z.string().nullable(),
   role: z.enum([UserRole.LEARNER, UserRole.TEACHER, UserRole.ADMIN]),
   status: z.enum([UserStatus.ACTIVE, UserStatus.INACTIVE, UserStatus.BLOCKED]),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-  deletedAt: z.date().nullable(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  updatedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  deletedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()).nullable(),
 })
 
 export const VerificationCodeSchema = z.object({
@@ -44,8 +44,8 @@ export const VerificationCodeSchema = z.object({
     TypeOfVerificationCode.LOGIN,
     TypeOfVerificationCode.DISABLE_2FA,
   ]),
-  expiresAt: z.date(),
-  createdAt: z.date(),
+  expiresAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
 export const SendOTPBodySchema = VerificationCodeSchema.pick({
@@ -89,8 +89,8 @@ export const RefreshTokenSchema = z.object({
   token: z.string(),
   userId: z.number(),
   deviceId: z.number(),
-  expiresAt: z.date(),
-  createdAt: z.date(),
+  expiresAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
 export const RefreshTokenBodySchema = z
@@ -107,8 +107,8 @@ export const DeviceSchema = z.object({
   userId: z.number(),
   userAgent: z.string(),
   ip: z.string(),
-  lastActive: z.date(),
-  createdAt: z.date(),
+  lastActive: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
   isActive: z.boolean(),
 })
 

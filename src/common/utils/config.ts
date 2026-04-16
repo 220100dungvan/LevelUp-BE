@@ -22,6 +22,7 @@ const configSchema = z.object({
   RESEND_API_KEY: z.string(),
   APP_NAME: z.string(),
   OTP_EXPIRES_IN: z.string(),
+  ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 characters long'),
 })
 
 const configServer = configSchema.safeParse(process.env)

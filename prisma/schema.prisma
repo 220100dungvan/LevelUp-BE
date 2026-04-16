@@ -189,10 +189,13 @@ model VerificationCode {
 }
 
 model VocabularyTopic {
-  id           String  @id @default(uuid()) @db.Uuid
+  id           String    @id @default(uuid()) @db.Uuid
   name         String
-  description  String? @db.Text
-  thumbnailUrl String? @map("thumbnail_url")
+  description  String?   @db.Text
+  thumbnailUrl String?   @map("thumbnail_url")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
   lists VocabularyList[]
 
