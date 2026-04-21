@@ -34,7 +34,7 @@ export class VocabularyService {
 
   // AES-256-CBC encryption
   private encryptData(plainText: string): { encryptedData: string; iv: string } {
-    const key = Buffer.from(envConfig.ENCRYPTION_KEY, 'hex')
+    const key = Buffer.from(envConfig.ENCRYPTION_KEY, 'utf8')
     const iv = randomBytes(16)
     const cipher = createCipheriv('aes-256-cbc', key, iv)
     const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()])
@@ -84,7 +84,11 @@ export class VocabularyService {
   }
 
   getLists(query: GetListsQueryType) {
-    return this.vocabularyRepository.findLists(query)
+    return this.vocabularyRepository.findLists({
+      ...query,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
+    })
   }
 
   async getListDetail({ listId, userId }: { listId: string; userId: string }) {

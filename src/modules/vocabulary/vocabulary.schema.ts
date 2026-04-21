@@ -131,6 +131,7 @@ export const GetListDetailResSchema = z.object({
   topic: z.object({
     id: z.string().uuid(),
     name: z.string(),
+    thumbnailUrl: z.string().nullable(),
   }),
   creator: z.object({
     id: z.string().uuid(),

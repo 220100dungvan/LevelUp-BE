@@ -118,7 +118,7 @@ export class VocabularyRepository {
     return this.prismaService.vocabularyList.findUnique({
       where: { id, deletedAt: null },
       include: {
-        topic: { select: { id: true, name: true } },
+        topic: { select: { id: true, name: true, thumbnailUrl: true } },
         creator: { select: { id: true, fullName: true, avatarUrl: true } },
         items: {
           orderBy: { orderIndex: 'asc' },
@@ -178,7 +178,7 @@ export class VocabularyRepository {
     return this.prismaService.vocabularyList.findUnique({
       where: { id, deletedAt: null },
       include: {
-        topic: { select: { id: true, name: true } },
+        topic: { select: { id: true, name: true, thumbnailUrl: true } },
         creator: { select: { id: true, fullName: true, avatarUrl: true } },
         _count: { select: { items: true } },
       },

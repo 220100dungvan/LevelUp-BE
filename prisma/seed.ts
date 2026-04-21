@@ -1,0 +1,24 @@
+import 'dotenv/config'
+import { seedTopics } from './seeds/topics.seed'
+import { seedVocabularyLists } from './seeds/vocabulary-lists.seed'
+import { seedVocabularies } from './seeds/vocabularies.seed'
+
+async function main() {
+  console.log('Starting database seeding...\n')
+
+  try {
+    await seedTopics()
+    await seedVocabularyLists()
+    await seedVocabularies()
+
+    console.log('\n Database seeding completed successfully!')
+  } catch (error) {
+    console.error('\n Database seeding failed:', error)
+    process.exit(1)
+  }
+}
+
+main().catch((error) => {
+  console.error('Fatal error:', error)
+  process.exit(1)
+})

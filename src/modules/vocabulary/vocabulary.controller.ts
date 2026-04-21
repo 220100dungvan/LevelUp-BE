@@ -1,6 +1,7 @@
 import { UserRole } from '@/common/constants/auth.constant'
 import type { RoleNameType } from '@/common/constants/role.constant'
 import { ActiveUser } from '@/common/decorators/active-user.decorator'
+import { IsPublic } from '@/common/decorators/auth.decorator'
 import { Roles } from '@/common/decorators/roles.decorator'
 import { MessageResDTO } from '@/common/dtos/response.dto'
 import {
@@ -31,6 +32,7 @@ export class VocabularyController {
 
   // Lấy danh sách chủ đề từ vựng
   @Get('topic')
+  @IsPublic()
   @ZodResponse({ type: GetTopicsResDTO })
   getTopics() {
     return this.vocabularyService.getTopics()
@@ -43,7 +45,7 @@ export class VocabularyController {
     return this.vocabularyService.getTopic(topicId)
   }
 
-  // Tạo mới chủ đề từ vựng [Teacher/Admin]
+  // Tạo mới chủ đề từ vựng [Admin]
   @Post('topic')
   @Roles(UserRole.ADMIN)
   @ZodResponse({ type: VocabularyTopicDTO })
@@ -51,7 +53,7 @@ export class VocabularyController {
     return this.vocabularyService.createTopic(body)
   }
 
-  // Cập nhật chủ đề từ vựng [Teacher/Admin]
+  // Cập nhật chủ đề từ vựng [Admin]
   @Patch('topic/:id')
   @Roles(UserRole.ADMIN)
   @ZodResponse({ type: VocabularyTopicDTO })
@@ -59,7 +61,7 @@ export class VocabularyController {
     return this.vocabularyService.updateTopic(topicId, body)
   }
 
-  // Xóa mềm chủ đề từ vựng [Teacher/Admin]
+  // Xóa mềm chủ đề từ vựng [Admin]
   @Delete('topic/:id')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -70,13 +72,16 @@ export class VocabularyController {
 
   // Lấy danh sách các list từ vựng
   @Get('list')
+  @IsPublic()
   @ZodResponse({ type: GetListsResDTO })
   getLists(@Query() query: GetListsQueryDTO) {
+    console.log('Query params:', query)
     return this.vocabularyService.getLists(query)
   }
 
   // Lấy chi tiết list, bao gồm danh sách từ vựng bên trong (kiểm tra quyền truy cập)
   @Get('list/:id')
+  @IsPublic()
   @ZodResponse({ type: GetListDetailResDTO })
   getListDetail(@Param('id') listId: string, @ActiveUser('userId') userId: string) {
     return this.vocabularyService.getListDetail({ listId, userId })
