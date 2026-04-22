@@ -1,10 +1,12 @@
 import { UserRole } from '@/common/constants/auth.constant'
 import envConfig from '@/common/utils/config'
+import { isDataValidationPrismaError, isNotFoundPrismaError } from '@/common/utils/helpers'
 import { VocabularyRepository } from '@/modules/vocabulary/vocabulary.repo'
 import {
   AddItemsToListBodyType,
   CreateVocabularyBodyType,
   CreateVocabularyListBodyType,
+  GetLearningProgressOverviewQueryType,
   GetListsQueryType,
   ReorderItemsBodyType,
   SubmitLearningWordBodyType,
@@ -12,7 +14,7 @@ import {
   CreateTopicBodyType,
   UpdateTopicBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { createCipheriv, randomBytes } from 'crypto'
 
 @Injectable()
@@ -284,6 +286,32 @@ export class VocabularyService {
       correctCount: progress.correctCount,
       wrongCount: progress.wrongCount,
       nextReviewAt: progress.nextReviewAt,
+    }
+  }
+
+  async getLearningProgressOverview(userId: string, query: GetLearningProgressOverviewQueryType) {
+    return this.vocabularyRepository.getLearningProgressOverview(userId, query)
+  }
+
+  async getLearningProgressByList(userId: string, listId: string, query: GetLearningProgressOverviewQueryType) {
+    try {
+      const list = await this.vocabularyRepository.findListById(listId)
+
+      if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+      await this.verifyAccess(list, userId)
+
+      return this.vocabularyRepository.getLearningProgressByList(userId, listId, query)
+    } catch (error) {
+      if (isDataValidationPrismaError(error)) {
+        throw new BadRequestException('Error.InvalidListIdFormat')
+      }
+
+      if (isNotFoundPrismaError(error)) {
+        throw new NotFoundException('Error.VocabularyListNotFound')
+      }
+
+      throw error
     }
   }
 }

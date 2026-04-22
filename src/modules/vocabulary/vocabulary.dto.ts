@@ -7,6 +7,9 @@ import {
   CreateVocabularyResSchema,
   CreateTopicBodySchema,
   DeleteVocabularyListResSchema,
+  GetLearningProgressByListResSchema,
+  GetLearningProgressOverviewQuerySchema,
+  GetLearningProgressOverviewResSchema,
   GetListDetailResSchema,
   GetListsQuerySchema,
   GetListsResSchema,
@@ -55,3 +58,9 @@ export class CreateVocabularyBodyDTO extends createZodDto(CreateVocabularyBodySc
 export class SubmitLearningWordBodyDTO extends createZodDto(SubmitLearningWordBodySchema) {}
 
 export class SubmitLearningWordResDTO extends createZodDto(SubmitLearningWordResSchema) {}
+
+export class GetLearningProgressOverviewQueryDTO extends createZodDto(GetLearningProgressOverviewQuerySchema) {}
+
+export class GetLearningProgressOverviewResDTO extends createZodDto(GetLearningProgressOverviewResSchema) {}
+
+export class GetLearningProgressByListResDTO extends createZodDto(GetLearningProgressByListResSchema) {}
