@@ -1,4 +1,4 @@
-import envConfig from '@/common/config'
+import envConfig from '@/common/utils/config'
 import { TokenService } from '@/common/services/token.service'
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
 

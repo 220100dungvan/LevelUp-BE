@@ -1,4 +1,4 @@
-import envConfig from '@/common/config'
+import envConfig from '@/common/utils/config'
 import {
   AccessTokenPayload,
   AccessTokenPayloadCreate,

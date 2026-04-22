@@ -39,7 +39,7 @@ export class AccessTokenGuard implements CanActivate {
     }
   }
 
-  private async validateUserStatus(_userId: number, _request: any): Promise<void> {
+  private async validateUserStatus(_userId: string, _request: any): Promise<void> {
     // const user = await this.prismaService.user.findUnique({
     //   where: {
     //     id: userId,
