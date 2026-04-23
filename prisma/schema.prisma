@@ -301,9 +301,22 @@ model UserVocabularyProgress {
   @@map("user_vocabulary_progress")
 }
 
+model VideoTopic {
+  id String @id @default(uuid()) @db.Uuid
+  name String @unique
+  description String? @db.Text
+  thumbnailUrl String? @map("thumbnail_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  videos Video[]
+
+  @@map("video_topics")
+}
 model Video {
   id           String    @id @default(uuid()) @db.Uuid
-  topic        String?
+  topicId      String?   @map("topic_id") @db.Uuid
   level        Level?
   title        String
   videoUrl     String    @map("video_url")
@@ -312,6 +325,7 @@ model Video {
   createdAt    DateTime  @default(now()) @map("created_at")
   deletedAt    DateTime? @map("deleted_at")
 
+  videoTopic       VideoTopic?           @relation(fields: [topicId], references: [id])
   sentences        VideoSentence[]
   learningSessions UserLearningSession[]
 
@@ -386,21 +400,23 @@ model UserShadowingResult {
   @@map("user_shadowing_results")
 }
 
-model ArticleGroup {
-  id           String    @id @default(uuid()) @db.Uuid
-  topic        String?
-  thumbnailUrl String?   @map("thumbnail_url")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  deletedAt    DateTime? @map("deleted_at")
+model ArticleTopic {
+  id String @id @default(uuid()) @db.Uuid
+  name String @unique
+  description String? @db.Text
+  thumbnailUrl String? @map("thumbnail_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   articles Article[]
 
-  @@map("article_groups")
+  @@map("article_topics")
 }
 
 model Article {
   id             String        @id @default(uuid()) @db.Uuid
-  groupId        String        @map("group_id") @db.Uuid
+  topicId        String        @map("topic_id") @db.Uuid
   level          Level
   title          String
   content        String        @db.Text
@@ -412,11 +428,11 @@ model Article {
   createdBy      String        @map("created_by") @db.Uuid
   deletedAt      DateTime?     @map("deleted_at")
 
-  group    ArticleGroup          @relation(fields: [groupId], references: [id])
+  topic    ArticleTopic          @relation(fields: [topicId], references: [id])
   creator  User                  @relation(fields: [createdBy], references: [id])
   progress UserArticleProgress[]
 
-  @@unique([groupId, level, id])
+  @@unique([topicId, level, id])
   @@map("articles")
 }
 
