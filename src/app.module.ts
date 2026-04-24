@@ -11,9 +11,11 @@ import CustomZodValidationPipe from '@/common/pipes/custom-zod-validation.pipe'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
 import { HttpExceptionFilter } from '@/common/filters/http-exception.filter'
 import { ProfileModule } from './modules/profile/profile.module'
+import { VideoModule } from './modules/video/video.module'
+import { TransformInterceptor } from '@/common/interceptors/transform.interceptor'
 
 @Module({
-  imports: [ConfigModule.forRoot(), CommonModule, AuthModule, UserModule, VocabularyModule, ProfileModule],
+  imports: [ConfigModule.forRoot(), CommonModule, AuthModule, UserModule, VocabularyModule, ProfileModule, VideoModule],
   controllers: [AppController],
   providers: [
     AppService,
@@ -21,7 +23,14 @@ import { ProfileModule } from './modules/profile/profile.module'
       provide: APP_PIPE,
       useClass: CustomZodValidationPipe,
     },
-    { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ZodSerializerInterceptor,
+    },
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,

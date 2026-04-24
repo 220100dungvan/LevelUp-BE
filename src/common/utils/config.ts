@@ -23,6 +23,12 @@ const configSchema = z.object({
   APP_NAME: z.string(),
   OTP_EXPIRES_IN: z.string(),
   ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 characters long'),
+  GROQ_API_KEY: z.string(),
+  GROQ_API_BASE_URL: z.string(),
+  CLOUDINARY_CLOUD_NAME: z.string(),
+  CLOUDINARY_API_KEY: z.string(),
+  CLOUDINARY_API_SECRET: z.string(),
+  CLOUDINARY_VIDEO_TOPIC_FOLDER: z.string(),
 })
 
 const configServer = configSchema.safeParse(process.env)

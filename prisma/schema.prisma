@@ -310,13 +310,12 @@ model VideoTopic {
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  videos Video[]
+  videoMappings VideoTopicMapping[] 
 
   @@map("video_topics")
 }
 model Video {
   id           String    @id @default(uuid()) @db.Uuid
-  topicId      String?   @map("topic_id") @db.Uuid
   level        Level?
   title        String
   videoUrl     String    @map("video_url")
@@ -325,11 +324,22 @@ model Video {
   createdAt    DateTime  @default(now()) @map("created_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  videoTopic       VideoTopic?           @relation(fields: [topicId], references: [id])
+  videoMappings VideoTopicMapping[] 
   sentences        VideoSentence[]
   learningSessions UserLearningSession[]
 
   @@map("videos")
+}
+
+model VideoTopicMapping {
+  videoId  String   @map("video_id") @db.Uuid
+  topicId  String   @map("topic_id") @db.Uuid
+
+  video      Video      @relation(fields: [videoId], references: [id])
+  videoTopic VideoTopic @relation(fields: [topicId], references: [id])
+
+  @@id([videoId, topicId])
+  @@map("video_topic_mappings")
 }
 
 model VideoSentence {
@@ -409,14 +419,13 @@ model ArticleTopic {
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  articles Article[]
+  articleMappings ArticleTopicMapping[]
 
   @@map("article_topics")
 }
 
 model Article {
   id             String        @id @default(uuid()) @db.Uuid
-  topicId        String        @map("topic_id") @db.Uuid
   level          Level
   title          String
   content        String        @db.Text
@@ -428,12 +437,23 @@ model Article {
   createdBy      String        @map("created_by") @db.Uuid
   deletedAt      DateTime?     @map("deleted_at")
 
-  topic    ArticleTopic          @relation(fields: [topicId], references: [id])
+  topicMappings ArticleTopicMapping[] 
   creator  User                  @relation(fields: [createdBy], references: [id])
   progress UserArticleProgress[]
 
-  @@unique([topicId, level, id])
+  @@unique([ level, id])
   @@map("articles")
+}
+
+model ArticleTopicMapping {
+  articleId String @map("article_id") @db.Uuid
+  topicId   String @map("topic_id") @db.Uuid
+
+  article      Article      @relation(fields: [articleId], references: [id])
+  articleTopic ArticleTopic @relation(fields: [topicId], references: [id])
+
+  @@id([articleId, topicId])
+  @@map("article_topic_mappings")
 }
 
 model MediaVocabulary {
