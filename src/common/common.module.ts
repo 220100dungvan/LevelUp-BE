@@ -6,11 +6,12 @@ import { TwoFactorService } from '@/common/services/2fa.service'
 import { HashingService } from '@/common/services/hashing.service'
 import { PrismaService } from '@/common/services/prisma.service'
 import { TokenService } from '@/common/services/token.service'
+import { CloudinaryService } from '@/common/services/cloudinary.service'
 import { Global, Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 
-const sharedServices = [PrismaService, TokenService, HashingService, EmailService, TwoFactorService]
+const sharedServices = [PrismaService, TokenService, HashingService, EmailService, TwoFactorService, CloudinaryService]
 
 @Global()
 @Module({

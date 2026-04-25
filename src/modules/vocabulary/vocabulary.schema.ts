@@ -215,6 +215,40 @@ export const SubmitLearningWordBodySchema = z
   })
   .strict()
 
+export const GetLearningProgressOverviewQuerySchema = z
+  .object({
+    days: z.coerce.number().int().min(1).max(365).default(180),
+  })
+  .strict()
+
+const LearningProgressHeatmapItemSchema = z.object({
+  date: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  learnedCount: z.number().int(),
+  reviewedCount: z.number().int(),
+  correctCount: z.number().int(),
+  wrongCount: z.number().int(),
+  totalActivity: z.number().int(),
+})
+
+export const GetLearningProgressOverviewResSchema = z.object({
+  summary: z.object({
+    learnedWords: z.number().int(),
+    rememberedWords: z.number().int(),
+    needReviewWords: z.number().int(),
+  }),
+  heatmap: z.array(LearningProgressHeatmapItemSchema),
+})
+
+export const GetLearningProgressByListResSchema = z.object({
+  summary: z.object({
+    totalWordsInList: z.number().int(),
+    learnedWords: z.number().int(),
+    rememberedWords: z.number().int(),
+    needReviewWords: z.number().int(),
+  }),
+  heatmap: z.array(LearningProgressHeatmapItemSchema),
+})
+
 export const CreateVocabularyListResSchema = VocabularyListSummarySchema
 
 export type GetListsQueryType = z.infer<typeof GetListsQuerySchema>
@@ -228,3 +262,4 @@ export type ReorderItemsBodyType = z.infer<typeof ReorderItemsBodySchema>
 export type SubmitLearningWordBodyType = z.infer<typeof SubmitLearningWordBodySchema>
 export type CreateTopicBodyType = z.infer<typeof CreateTopicBodySchema>
 export type UpdateTopicBodyType = z.infer<typeof UpdateTopicBodySchema>
+export type GetLearningProgressOverviewQueryType = z.infer<typeof GetLearningProgressOverviewQuerySchema>

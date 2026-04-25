@@ -1,8 +1,9 @@
-import { VOCAB_REVIEW_INTERVAL_DAYS, VocabStatusType } from '@/common/constants/vocabulary.constant'
+import { VOCAB_REVIEW_INTERVAL_DAYS, VocabStatus, VocabStatusType } from '@/common/constants/vocabulary.constant'
 import { PrismaService } from '@/common/services/prisma.service'
 import {
   CreateVocabularyBodyType,
   CreateVocabularyListBodyType,
+  GetLearningProgressOverviewQueryType,
   GetListsQueryType,
   UpdateVocabularyListBodyType,
   CreateTopicBodyType,
@@ -325,7 +326,7 @@ export class VocabularyRepository {
   // Upsert UserLearningDaily stats
   async updateLearningDaily(userId: string, listId: string, isCorrect: boolean, isNewWord: boolean) {
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    today.setUTCHours(0, 0, 0, 0)
 
     return this.prismaService.userLearningDaily.upsert({
       where: { userId_listId_date: { userId, listId, date: today } },
@@ -392,5 +393,111 @@ export class VocabularyRepository {
         totalReviews: { increment: 1 },
       },
     })
+  }
+
+  async getLearningProgressOverview(userId: string, query: GetLearningProgressOverviewQueryType) {
+    const days = query.days ?? 180
+    const startDate = this.buildStartDate(days)
+
+    const [learnedWords, rememberedWords, heatmapRows] = await Promise.all([
+      this.prismaService.userVocabularyProgress.count({
+        where: { userId },
+      }),
+      this.prismaService.userVocabularyProgress.count({
+        where: { userId, status: VocabStatus.Mastered },
+      }),
+      this.prismaService.userLearningDaily.groupBy({
+        by: ['date'],
+        where: {
+          userId,
+          date: { gte: startDate },
+        },
+        _sum: {
+          wordsLearned: true,
+          wordsReviewed: true,
+          correctCount: true,
+          wrongCount: true,
+        },
+        orderBy: { date: 'asc' },
+      }),
+    ])
+
+    const needReviewWords = learnedWords - rememberedWords
+
+    return {
+      summary: {
+        learnedWords,
+        rememberedWords,
+        needReviewWords,
+      },
+      heatmap: heatmapRows.map((row) => ({
+        date: row.date,
+        learnedCount: row._sum.wordsLearned ?? 0,
+        reviewedCount: row._sum.wordsReviewed ?? 0,
+        correctCount: row._sum.correctCount ?? 0,
+        wrongCount: row._sum.wrongCount ?? 0,
+        totalActivity: (row._sum.wordsLearned ?? 0) + (row._sum.wordsReviewed ?? 0),
+      })),
+    }
+  }
+
+  async getLearningProgressByList(userId: string, listId: string, query: GetLearningProgressOverviewQueryType) {
+    const days = query.days ?? 180
+    const startDate = this.buildStartDate(days)
+
+    const [totalWordsInList, learnedWords, rememberedWords, heatmapRows] = await Promise.all([
+      this.prismaService.vocabularyListItem.count({
+        where: { listId },
+      }),
+      this.prismaService.userVocabularyProgress.count({
+        where: { userId, listId },
+      }),
+      this.prismaService.userVocabularyProgress.count({
+        where: { userId, listId, status: VocabStatus.Mastered },
+      }),
+      this.prismaService.userLearningDaily.groupBy({
+        by: ['date'],
+        where: {
+          userId,
+          listId,
+          date: {
+            gte: startDate,
+          },
+        },
+        _sum: {
+          wordsLearned: true,
+          wordsReviewed: true,
+          correctCount: true,
+          wrongCount: true,
+        },
+        orderBy: { date: 'asc' },
+      }),
+    ])
+
+    const needReviewWords = learnedWords - rememberedWords
+
+    return {
+      summary: {
+        totalWordsInList,
+        learnedWords,
+        rememberedWords,
+        needReviewWords,
+      },
+      heatmap: heatmapRows.map((row) => ({
+        date: row.date,
+        learnedCount: row._sum.wordsLearned ?? 0,
+        reviewedCount: row._sum.wordsReviewed ?? 0,
+        correctCount: row._sum.correctCount ?? 0,
+        wrongCount: row._sum.wrongCount ?? 0,
+        totalActivity: (row._sum.wordsLearned ?? 0) + (row._sum.wordsReviewed ?? 0),
+      })),
+    }
+  }
+
+  private buildStartDate(days: number): Date {
+    const startDate = new Date()
+    startDate.setUTCHours(0, 0, 0, 0)
+    startDate.setDate(startDate.getDate() - Math.max(days - 1, 0))
+    return startDate
   }
 }
