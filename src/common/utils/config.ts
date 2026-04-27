@@ -23,6 +23,7 @@ const configSchema = z.object({
   APP_NAME: z.string(),
   OTP_EXPIRES_IN: z.string(),
   ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 characters long'),
+  SERPAPI_KEY: z.string(),
   GROQ_API_KEY: z.string(),
   GROQ_API_BASE_URL: z.string(),
   CLOUDINARY_CLOUD_NAME: z.string(),

@@ -257,28 +257,29 @@ ${JSON.stringify(inputItems)}`,
     }
 
     // oEmbed fallback cho metadata
-    try {
-      const response = await fetch(
-        `https://www.youtube.com/oembed?url=${encodeURIComponent(normalizedVideoUrl)}&format=json`,
-      )
-      if (response.ok) {
-        const data = (await response.json()) as { title?: string; thumbnail_url?: string }
-        title = data.title || title
-        thumbnailUrl = data.thumbnail_url || thumbnailUrl
+    if (!title || !thumbnailUrl) {
+      try {
+        const response = await fetch(
+          `https://www.youtube.com/oembed?url=${encodeURIComponent(normalizedVideoUrl)}&format=json`,
+        )
+        if (response.ok) {
+          const data = (await response.json()) as { title?: string; thumbnail_url?: string }
+          title = data.title || title
+          thumbnailUrl = data.thumbnail_url || thumbnailUrl
+        }
+      } catch {
+        // Keep fallback metadata.
+        console.log('lỗi')
       }
-    } catch {
-      // Keep fallback metadata.
-      console.log('lỗi')
     }
 
-    // Lấy transcript qua Google Timed Text API (không cần auth)
-    transcriptResult = await this.fetchTranscriptFromTimedText(videoId)
+    // Lấy transcript
+    transcriptResult = await this.fetchTranscript(videoId)
 
     const baseSentences = transcriptResult ? this.toProcessedSentences(transcriptResult.transcript) : []
-    console.log('Base sentences:', baseSentences)
+
     const aiResult = await this.enrichSentencesWithAi({ title, sentences: baseSentences })
     const subtitleAvailable = aiResult.sentences.length > 0
-    const transcriptSource: 'SUBTITLE' | 'WHISPER' | 'NONE' = subtitleAvailable ? 'SUBTITLE' : 'NONE'
 
     return {
       youtubeVideoId: videoId,
@@ -291,15 +292,11 @@ ${JSON.stringify(inputItems)}`,
       subtitleAvailable,
       aiProcessed: aiResult.aiProcessed,
       transcriptLanguage: transcriptResult?.language ?? null,
-      transcriptSource,
-      processingNote: subtitleAvailable
-        ? null
-        : 'Không tìm thấy subtitle. Cần tích hợp bước fallback Whisper (download audio + transcribe) để hoàn tất flow tự động.',
       vocabularySuggestions: this.extractVocabularySuggestions(aiResult.sentences),
     }
   }
 
-  private async fetchTranscriptFromTimedText(
+  private async fetchTranscript(
     videoId: string,
   ): Promise<{ transcript: TranscriptSegment[]; language: string } | null> {
     try {
@@ -307,7 +304,7 @@ ${JSON.stringify(inputItems)}`,
         engine: 'youtube_video_transcript',
         v: videoId,
         language_code: 'en',
-        api_key: process.env.SERPAPI_KEY!,
+        api_key: envConfig.SERPAPI_KEY,
       })
 
       const response = await fetch(`https://serpapi.com/search?${params}`)
@@ -315,61 +312,53 @@ ${JSON.stringify(inputItems)}`,
 
       const data = (await response.json()) as {
         transcript?: Array<{
-          start_ms: number
-          end_ms: number
-          snippet: string
-          start_time_text: string
+          start_ms?: number
+          end_ms?: number
+          snippet?: string
+          start_time_text?: string
+          start_time_label?: string
         }>
-        available_transcripts?: Array<{
-          language_code: string
-          language_name: string
-          type: string
-          selected: boolean
-          serpapi_link: string
-        }>
-      }
-
-      // Nếu 'en' không có, thử lấy transcript đầu tiên available
-      if (!data.transcript || data.transcript.length === 0) {
-        const firstAvailable = data.available_transcripts?.[0]
-        if (!firstAvailable) return null
-
-        // Gọi lại với serpapi_link của transcript đầu tiên
-        const fallbackResponse = await fetch(firstAvailable.serpapi_link + `&api_key=${process.env.SERPAPI_KEY!}`)
-        if (!fallbackResponse.ok) return null
-
-        const fallbackData = (await fallbackResponse.json()) as {
-          transcript?: Array<{
-            start_ms: number
-            end_ms: number
-            snippet: string
-          }>
+        search_parameters?: {
+          language_code?: string
         }
-
-        if (!fallbackData.transcript || fallbackData.transcript.length === 0) return null
-
-        const segments: TranscriptSegment[] = fallbackData.transcript
-          .map((item) => ({
-            text: item.snippet.replace(/\n/g, ' ').trim(),
-            offset: item.start_ms,
-            duration: item.end_ms - item.start_ms,
-            lang: firstAvailable.language_code,
-          }))
-          .filter((seg) => seg.text.length > 0)
-
-        return segments.length > 0 ? { transcript: segments, language: firstAvailable.language_code } : null
+        search_information?: {
+          results_state?: string
+        }
+        error?: string
       }
 
-      const segments: TranscriptSegment[] = data.transcript
-        .map((item) => ({
-          text: item.snippet.replace(/\n/g, ' ').trim(),
-          offset: item.start_ms,
-          duration: item.end_ms - item.start_ms,
-          lang: 'en',
-        }))
+      // SerpApi can return success with empty transcript payload.
+      if (data.error || !Array.isArray(data.transcript) || data.transcript.length === 0) {
+        return null
+      }
+
+      const language = data.search_parameters?.language_code || 'en'
+      const sortedItems = [...data.transcript].sort((a, b) => (a.start_ms ?? 0) - (b.start_ms ?? 0))
+
+      const segments: TranscriptSegment[] = sortedItems
+        .map((item, index, arr) => {
+          const text = (item.snippet || '').replace(/\n/g, ' ').trim()
+          const offset = item.start_ms ?? 0
+
+          let duration = 0
+          if (typeof item.end_ms === 'number' && item.end_ms >= offset) {
+            duration = item.end_ms - offset
+          } else {
+            const nextOffset = arr[index + 1]?.start_ms
+            // Fallback for records without end_ms: estimate by next segment start or default 2 seconds.
+            duration = typeof nextOffset === 'number' && nextOffset > offset ? nextOffset - offset : 2000
+          }
+
+          return {
+            text,
+            offset,
+            duration,
+            lang: language,
+          }
+        })
         .filter((seg) => seg.text.length > 0)
 
-      return segments.length > 0 ? { transcript: segments, language: 'en' } : null
+      return segments.length > 0 ? { transcript: segments, language } : null
     } catch (error) {
       console.error('Error fetching transcript from SerpApi:', error)
       return null

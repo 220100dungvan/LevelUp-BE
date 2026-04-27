@@ -117,8 +117,6 @@ export const ProcessYoutubeVideoUrlResSchema = z.object({
   subtitleAvailable: z.boolean(),
   aiProcessed: z.boolean(),
   transcriptLanguage: z.string().nullable(),
-  transcriptSource: z.enum(['SUBTITLE', 'WHISPER', 'NONE']),
-  processingNote: z.string().nullable(),
   vocabularySuggestions: z.array(z.string()),
 })
 
