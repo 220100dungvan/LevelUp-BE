@@ -3,6 +3,8 @@ import { VideoSessionRepository } from '@/modules/video-session/video-session.re
 import { VideoRepository } from '@/modules/video/video.repo'
 import { DictationRepository } from '@/modules/dictation/dictation.repo'
 import { SubmitDictationBodyType } from '@/modules/dictation/dictation.schema'
+import { TokenService } from '@/common/services/token.service'
+import { DictationSubmitPayload } from '@/common/types/jwt.type'
 import { computeDictationDiff } from '@/common/utils/scoring'
 
 @Injectable()
@@ -11,40 +13,56 @@ export class DictationService {
     private readonly dictationRepo: DictationRepository,
     private readonly sessionRepo: VideoSessionRepository,
     private readonly videoRepo: VideoRepository,
+    private readonly tokenService: TokenService,
   ) {}
 
   async submitResult(body: SubmitDictationBodyType, userId: string) {
-    // 1. Validate session
-    const session = await this.sessionRepo.findSessionById(body.sessionId)
+    // 1. Decode JWT payload
+    let decodedPayload: DictationSubmitPayload
+    try {
+      decodedPayload = await this.tokenService.verifyDictationSubmit(body.data)
+    } catch {
+      throw new BadRequestException('Error.InvalidToken')
+    }
+
+    const { sessionId, sentenceId, userText, replayCount } = decodedPayload
+
+    // 2. Validate session
+    const session = await this.sessionRepo.findSessionById(sessionId)
     if (!session) throw new NotFoundException('Error.SessionNotFound')
     if (session.userId !== userId) throw new ForbiddenException('Error.Forbidden')
     if (session.mode !== 'DICTATION') throw new BadRequestException('Error.WrongSessionMode')
     if (session.finishedAt) throw new BadRequestException('Error.SessionAlreadyFinished')
 
-    // 2. Lấy câu gốc
-    const sentence = await this.videoRepo.findSentenceById(body.sentenceId)
+    // 3. Lấy câu gốc
+    const sentence = await this.videoRepo.findSentenceById(sentenceId)
     if (!sentence) throw new NotFoundException('Error.SentenceNotFound')
 
-    // 3. Tính điểm (normalize + greedy word-by-word diff)
+    // 4. Tính điểm (normalize + greedy word-by-word diff)
     const { diff, correctCount, wrongCount, correctnessPercentage, isCorrect } = computeDictationDiff(
-      body.userText,
+      userText,
       sentence.content,
     )
 
-    // 4. Upsert result (user có thể làm lại câu)
+    // 5. Upsert result với  replayCount từ JWT
     await this.dictationRepo.upsertResult({
-      sessionId: body.sessionId,
-      sentenceId: body.sentenceId,
-      userText: body.userText,
+      sessionId,
+      sentenceId,
+      userText,
       correctCount,
       wrongCount,
+      replayCount,
     })
 
-    // 5. Nếu đúng 100% → cộng UserStat
-    if (isCorrect) {
-      await this.sessionRepo.incrementWordsLearned(userId, 1)
-    }
+    // 7. Query tất cả submitted results trong session này
+    const submittedResults = await this.dictationRepo.findResultsBySessionId(sessionId)
 
-    return { isCorrect, correctnessPercentage, diff, correctContent: sentence.content }
+    return {
+      isCorrect,
+      correctnessPercentage,
+      diff,
+      correctContent: sentence.content,
+      submittedResults,
+    }
   }
 }

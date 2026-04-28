@@ -15,6 +15,7 @@ import envConfig from '@/common/utils/config'
 import { isUniqueConstraintPrismaError } from '@/common/utils/helpers'
 import { CloudinaryService } from '@/common/services/cloudinary.service'
 import { UploadedImageFile } from '@/common/types/uploaded-file.type'
+import { encryptData } from '@/common/utils/encryption'
 
 interface TranscriptSegment {
   text: string
@@ -370,14 +371,44 @@ ${JSON.stringify(inputItems)}`,
     return { data: topics }
   }
 
-  getVideos(query: GetVideosQueryType) {
-    return this.videoRepository.findVideos(query)
+  getVideos(query: GetVideosQueryType, userId?: string) {
+    return this.videoRepository.findVideos(query, userId)
   }
 
   async getVideoById(videoId: string) {
     const video = await this.videoRepository.findVideoById(videoId)
+
+    let recommendedVideos: { id: string; title: string; thumbnailUrl: string | null }[] = []
+
+    if (video && video.topicIds && video.topicIds.length > 0) {
+      recommendedVideos = await this.videoRepository.findVideosByTopicIds(video.topicIds, videoId)
+    }
     if (!video) throw new NotFoundException('Error.VideoNotFound')
-    return video
+    const { encryptedData, iv } = encryptData(JSON.stringify(video.vocabularies))
+    return {
+      id: video.id,
+      topicIds: video.topicIds,
+      level: video.level,
+      title: video.title,
+      videoUrl: video.videoUrl,
+      thumbnailUrl: video.thumbnailUrl,
+      durationSec: video.durationSec,
+      createdAt: video.createdAt,
+      deletedAt: video.deletedAt,
+      topics: video.topics,
+      sentences: video.sentences,
+      sentenceCount: video.sentenceCount,
+      sessionCount: video.sessionCount,
+      avgScore: video.avgScore,
+      encryptedVocabularies: encryptedData,
+      vocabulariesIv: iv,
+      recommendedVideos: recommendedVideos.map((v) => ({
+        id: v.id,
+        title: v.title,
+        thumbnailUrl: v.thumbnailUrl,
+        level: video.level,
+      })),
+    }
   }
 
   async createTopic(body: CreateVideoTopicBodyType, thumbnail: UploadedImageFile) {

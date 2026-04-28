@@ -4,6 +4,7 @@ import {
   AccessTokenPayloadCreate,
   RefreshTokenPayload,
   RefreshTokenPayloadCreate,
+  DictationSubmitPayload,
 } from '@/common/types/jwt.type'
 import { Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
@@ -45,6 +46,12 @@ export class TokenService {
   verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
     return this.jwtService.verifyAsync(token, {
       secret: envConfig.REFRESH_TOKEN_SECRET,
+    })
+  }
+
+  verifyDictationSubmit(token: string): Promise<DictationSubmitPayload> {
+    return this.jwtService.verifyAsync(token, {
+      secret: envConfig.LEARNING_TOKEN_SECRET,
     })
   }
 }

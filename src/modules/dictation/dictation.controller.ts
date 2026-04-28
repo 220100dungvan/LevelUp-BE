@@ -1,4 +1,3 @@
-// src/modules/dictation/dictation.controller.ts
 import { ActiveUser } from '@/common/decorators/active-user.decorator'
 import {
   FinishSessionResDTO,
@@ -30,10 +29,10 @@ export class DictationController {
   }
 
   /**
-   * POST /dictation/result
-   * Chấm điểm 1 câu theo thời gian thực
+   * POST /dictation/submit
+   * lưu kết quả vào DB, trả về kết quả chấm điểm + tất cả kết quả đã submit trong session này
    */
-  @Post('result')
+  @Post('submit')
   @HttpCode(HttpStatus.OK)
   @ZodResponse({ type: SubmitDictationResDTO })
   submitResult(@Body() body: SubmitDictationBodyDTO, @ActiveUser('userId') userId: string) {
@@ -49,4 +48,6 @@ export class DictationController {
   finishSession(@Param('sessionId', ParseIntPipe) sessionId: number, @ActiveUser('userId') userId: string) {
     return this.sessionService.finishSession(sessionId, userId)
   }
+
+  // @Get(':videoId')
 }

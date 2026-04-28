@@ -1,4 +1,3 @@
-// src/modules/dictation/dictation.dto.ts
 import { createZodDto } from 'nestjs-zod'
 import {
   FinishSessionResSchema,

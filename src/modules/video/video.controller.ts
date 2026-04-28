@@ -1,4 +1,6 @@
 import { UserRole } from '@/common/constants/auth.constant'
+import { Auth, IsPublic } from '@/common/decorators/auth.decorator'
+import { ActiveUser } from '@/common/decorators/active-user.decorator'
 import { Roles } from '@/common/decorators/roles.decorator'
 import { MessageResDTO } from '@/common/dtos/response.dto'
 import {
@@ -36,12 +38,12 @@ import {
   VideoSentenceDTO,
   VideoTopicDTO,
 } from '@/modules/video/video.dto'
-import { IsPublic } from '@/common/decorators/auth.decorator'
 import type { UploadedImageFile } from '@/common/types/uploaded-file.type'
 import {
   optionalImageFileValidationPipe,
   requiredImageFileValidationPipe,
 } from '@/common/pipes/image-file-validation.pipe'
+import { AuthType, ConditionGuard } from '@/common/constants/auth.constant'
 
 @Controller('videos')
 export class VideoController {
@@ -98,10 +100,10 @@ export class VideoController {
    * Response mỗi item có: sentenceCount, sessionCount, avgScore, durationSec, topic
    */
   @Get()
-  @IsPublic()
+  @Auth([AuthType.Bearer, AuthType.None], { condition: ConditionGuard.Or })
   @ZodResponse({ type: GetVideosResDTO })
-  getVideos(@Query() query: GetVideosQueryDTO) {
-    return this.videoService.getVideos(query)
+  getVideos(@Query() query: GetVideosQueryDTO, @ActiveUser('userId') userId?: string) {
+    return this.videoService.getVideos(query, userId)
   }
 
   // (Admin) xử lý URL youtube
@@ -168,7 +170,6 @@ export class VideoController {
    * Chi tiết video + VideoSentence[]
    */
   @Get(':videoId')
-  @IsPublic()
   @ZodResponse({ type: GetVideoDetailResDTO })
   getVideoById(@Param('videoId', ParseUUIDPipe) videoId: string) {
     return this.videoService.getVideoById(videoId)

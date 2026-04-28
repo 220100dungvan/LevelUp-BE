@@ -60,12 +60,4 @@ export class VideoSessionRepository {
   findShadowingResultsBySession(sessionId: number) {
     return this.prismaService.userShadowingResult.findMany({ where: { sessionId } })
   }
-
-  incrementWordsLearned(userId: string, count: number) {
-    return this.prismaService.userStat.upsert({
-      where: { userId },
-      create: { userId, totalWordsLearned: count },
-      update: { totalWordsLearned: { increment: count } },
-    })
-  }
 }

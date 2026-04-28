@@ -49,6 +49,21 @@ export const VideoSentenceSchema = z.object({
   orderIndex: z.number().int(),
 })
 
+export const VideoVocabularySchema = z.object({
+  id: z.string().uuid(),
+  word: z.string(),
+  phonetic: z.string().nullable(),
+  partOfSpeech: z.string().nullable(),
+  meaningVi: z.string(),
+  meaningEn: z.string().nullable(),
+  exampleEn: z.string().nullable(),
+  exampleVi: z.string().nullable(),
+  imageUrl: z.string().nullable(),
+  audioUrl: z.string().nullable(),
+  audioExampleUrl: z.string().nullable(),
+  level: LevelEnum.nullable(),
+})
+
 export const GetVideosQuerySchema = z.object({
   topicId: z.string().uuid().optional(),
   level: LevelEnum.optional(),
@@ -198,7 +213,8 @@ export const VideoListItemSchema = z.object({
   topics: z.array(VideoTopicSchema.pick({ id: true, name: true, thumbnailUrl: true })),
   sentenceCount: z.number().int(),
   sessionCount: z.number().int(), // số lượt học (tất cả user)
-  avgScore: z.number().nullable(), // điểm TB shadowing
+  hasDictationPracticed: z.boolean(),
+  hasShadowingPracticed: z.boolean(),
 })
 
 export const GetVideosResSchema = z.object({
@@ -224,6 +240,9 @@ export const GetVideoDetailResSchema = z.object({
   sentenceCount: z.number().int(),
   sessionCount: z.number().int(),
   avgScore: z.number().nullable(),
+  encryptedVocabularies: z.string(),
+  vocabulariesIv: z.string(),
+  recommendedVideos: z.array(VideoListItemSchema.pick({ id: true, title: true, thumbnailUrl: true, level: true })),
 })
 
 export type GetVideosQueryType = z.infer<typeof GetVideosQuerySchema>
