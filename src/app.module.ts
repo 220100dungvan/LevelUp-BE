@@ -15,6 +15,7 @@ import { VideoModule } from './modules/video/video.module'
 import { TransformInterceptor } from '@/common/interceptors/transform.interceptor'
 import { DictationModule } from './modules/dictation/dictation.module'
 import { VideoSessionModule } from '@/modules/video-session/video-session.module'
+import { ShadowingModule } from './modules/shadowing/shadowing.module'
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { VideoSessionModule } from '@/modules/video-session/video-session.module
     VideoModule,
     DictationModule,
     VideoSessionModule,
+    ShadowingModule,
   ],
   controllers: [AppController],
   providers: [

@@ -38,7 +38,7 @@ import {
   VideoSentenceDTO,
   VideoTopicDTO,
 } from '@/modules/video/video.dto'
-import type { UploadedImageFile } from '@/common/types/uploaded-file.type'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 import {
   optionalImageFileValidationPipe,
   requiredImageFileValidationPipe,
@@ -68,7 +68,7 @@ export class VideoController {
   createTopic(
     @Body() body: CreateVideoTopicBodyDTO,
     @UploadedFile(requiredImageFileValidationPipe)
-    thumbnail: UploadedImageFile,
+    thumbnail: UploadedFileData,
   ) {
     return this.videoService.createTopic(body, thumbnail)
   }
@@ -81,7 +81,7 @@ export class VideoController {
     @Param('topicId', ParseUUIDPipe) topicId: string,
     @Body() body: UpdateVideoTopicBodyDTO,
     @UploadedFile(optionalImageFileValidationPipe)
-    thumbnail?: UploadedImageFile,
+    thumbnail?: UploadedFileData,
   ) {
     return this.videoService.updateTopic(topicId, body, thumbnail)
   }

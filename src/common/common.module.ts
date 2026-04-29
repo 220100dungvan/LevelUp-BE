@@ -10,8 +10,17 @@ import { CloudinaryService } from '@/common/services/cloudinary.service'
 import { Global, Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
+import { SpeechToTextService } from '@/common/services/speech-to-text.service'
 
-const sharedServices = [PrismaService, TokenService, HashingService, EmailService, TwoFactorService, CloudinaryService]
+const sharedServices = [
+  PrismaService,
+  TokenService,
+  HashingService,
+  EmailService,
+  TwoFactorService,
+  CloudinaryService,
+  SpeechToTextService,
+]
 
 @Global()
 @Module({

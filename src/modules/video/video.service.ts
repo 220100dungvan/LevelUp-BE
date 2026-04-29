@@ -14,7 +14,7 @@ import {
 import envConfig from '@/common/utils/config'
 import { isUniqueConstraintPrismaError } from '@/common/utils/helpers'
 import { CloudinaryService } from '@/common/services/cloudinary.service'
-import { UploadedImageFile } from '@/common/types/uploaded-file.type'
+import { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { encryptData } from '@/common/utils/encryption'
 
 interface TranscriptSegment {
@@ -125,7 +125,7 @@ export class VideoService {
     }))
 
     try {
-      const response = await fetch(envConfig.GROQ_API_BASE_URL, {
+      const response = await fetch(envConfig.GROQ_CHAT_API_ENDPOINT, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -385,12 +385,17 @@ ${JSON.stringify(inputItems)}`,
     }
     if (!video) throw new NotFoundException('Error.VideoNotFound')
     const { encryptedData, iv } = encryptData(JSON.stringify(video.vocabularies))
+
+    const url = new URL(video.videoUrl)
+    const watchId = url.searchParams.get('v')
+    const embedUrl = watchId ? `https://www.youtube.com/embed/${watchId}` : video.videoUrl
     return {
       id: video.id,
       topicIds: video.topicIds,
       level: video.level,
       title: video.title,
       videoUrl: video.videoUrl,
+      embedUrl: embedUrl,
       thumbnailUrl: video.thumbnailUrl,
       durationSec: video.durationSec,
       createdAt: video.createdAt,
@@ -411,7 +416,7 @@ ${JSON.stringify(inputItems)}`,
     }
   }
 
-  async createTopic(body: CreateVideoTopicBodyType, thumbnail: UploadedImageFile) {
+  async createTopic(body: CreateVideoTopicBodyType, thumbnail: UploadedFileData) {
     if (!thumbnail) {
       throw new UnprocessableEntityException([
         {
@@ -425,7 +430,7 @@ ${JSON.stringify(inputItems)}`,
     return this.videoRepository.createTopic(body, thumbnailUrl)
   }
 
-  async updateTopic(topicId: string, body: UpdateVideoTopicBodyType, thumbnail?: UploadedImageFile) {
+  async updateTopic(topicId: string, body: UpdateVideoTopicBodyType, thumbnail?: UploadedFileData) {
     const topic = await this.videoRepository.findTopicById(topicId)
     if (!topic) throw new NotFoundException('Error.VideoTopicNotFound')
 

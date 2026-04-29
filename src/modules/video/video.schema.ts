@@ -231,6 +231,7 @@ export const GetVideoDetailResSchema = z.object({
   level: LevelEnum.nullable(),
   title: z.string(),
   videoUrl: z.string(),
+  embedUrl: z.string(),
   thumbnailUrl: z.string().nullable(),
   durationSec: z.number().int().nullable(),
   createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),

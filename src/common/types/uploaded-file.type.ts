@@ -1,4 +1,4 @@
-export type UploadedImageFile = {
+export type UploadedFileData = {
   buffer: Buffer
   mimetype: string
   originalname: string
