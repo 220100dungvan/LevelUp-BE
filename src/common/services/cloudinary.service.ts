@@ -1,42 +1,50 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
-import { createHash } from 'crypto'
+import { v2 as cloudinary } from 'cloudinary'
 import envConfig from '@/common/utils/config'
-import { UploadedImageFile } from '@/common/types/uploaded-file.type'
+import { UploadedFileData } from '@/common/types/uploaded-file.type'
 
 @Injectable()
 export class CloudinaryService {
-  async uploadImage(file: UploadedImageFile, folder = envConfig.CLOUDINARY_VIDEO_TOPIC_FOLDER) {
+  constructor() {
+    cloudinary.config({
+      cloud_name: envConfig.CLOUDINARY_CLOUD_NAME,
+      api_key: envConfig.CLOUDINARY_API_KEY,
+      api_secret: envConfig.CLOUDINARY_API_SECRET,
+    })
+  }
+  async uploadImage(file: UploadedFileData, folder = envConfig.CLOUDINARY_VIDEO_TOPIC_FOLDER) {
     try {
-      const timestamp = Math.floor(Date.now() / 1000)
-      const paramsToSign = `folder=${folder}&timestamp=${timestamp}`
-      const signature = createHash('sha1').update(`${paramsToSign}${envConfig.CLOUDINARY_API_SECRET}`).digest('hex')
+      const base64Data = file.buffer.toString('base64')
+      const dataURI = `data:${file.mimetype};base64,${base64Data}`
 
-      const body = new FormData()
-      const bytes = new Uint8Array(file.buffer)
-      body.append('file', new Blob([bytes], { type: file.mimetype }), file.originalname)
-      body.append('api_key', envConfig.CLOUDINARY_API_KEY)
-      body.append('timestamp', String(timestamp))
-      body.append('folder', folder)
-      body.append('signature', signature)
-
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${envConfig.CLOUDINARY_CLOUD_NAME}/image/upload`, {
-        method: 'POST',
-        body,
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder,
+        resource_type: 'image',
+        public_id: file.originalname.split('.')[0], // Optional: set public_id
       })
 
-      if (!response.ok) {
-        throw new Error('Upload image failed')
-      }
-
-      const payload = (await response.json()) as { secure_url?: string }
-      if (!payload.secure_url) {
-        throw new Error('Missing secure_url')
-      }
-
-      return payload.secure_url
+      return result.secure_url
     } catch (error) {
       console.error('Cloudinary upload failed:', error)
       throw new InternalServerErrorException('Error.UploadImageFailed')
+    }
+  }
+
+  async uploadAudio(file: UploadedFileData, folder = envConfig.CLOUDINARY_SHADOWING_AUDIO_FOLDER) {
+    try {
+      const base64Data = file.buffer.toString('base64')
+      const dataURI = `data:${file.mimetype};base64,${base64Data}`
+
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder,
+        resource_type: 'video',
+        public_id: file.originalname.split('.')[0], // Optional: set public_id
+      })
+
+      return result.secure_url
+    } catch (error) {
+      console.error('Cloudinary upload failed:', error)
+      throw new InternalServerErrorException('Error.UploadAudioFailed')
     }
   }
 }

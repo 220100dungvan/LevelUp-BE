@@ -19,3 +19,10 @@ export interface RefreshTokenPayload extends RefreshTokenPayloadCreate {
   exp: number
   iat: number
 }
+
+export interface DictationSubmitPayload {
+  sessionId: number
+  sentenceId: number
+  userText: string
+  replayCount?: number
+}

@@ -22,7 +22,7 @@ export class VideoRepository {
     })
   }
 
-  async findVideos(query: GetVideosQueryType) {
+  async findVideos(query: GetVideosQueryType, userId?: string) {
     const { topicId, level, search, page, limit } = query
     const skip = (page - 1) * limit
 
@@ -59,23 +59,41 @@ export class VideoRepository {
 
     // avgScore (shadowing) per video
     const videoIds = videos.map((v) => v.id)
-    const avgScores =
-      videoIds.length > 0
-        ? await this.prismaService.$queryRaw<{ videoId: string; avgScore: number | null }[]>`
-            SELECT uls."video_id" AS "videoId", AVG(usr.score) AS "avgScore"
-            FROM user_learning_sessions uls
-            JOIN user_shadowing_results usr ON usr.session_id = uls.id
-            WHERE uls."video_id" = ANY(${videoIds}::uuid[])
-              AND uls.mode = 'SHADOWING'
-            GROUP BY uls."video_id"
-          `
+
+    const sessions =
+      userId && videoIds.length > 0
+        ? await this.prismaService.userLearningSession.findMany({
+            where: {
+              userId,
+              videoId: { in: videoIds },
+              mode: { in: ['DICTATION', 'SHADOWING'] },
+            },
+            select: {
+              videoId: true,
+              mode: true,
+            },
+          })
         : []
 
-    const scoreMap = new Map(avgScores.map((r) => [r.videoId, r.avgScore]))
+    const practiceFlagMap = new Map<string, { hasDictationPracticed: boolean; hasShadowingPracticed: boolean }>()
+    for (const session of sessions) {
+      const existing = practiceFlagMap.get(session.videoId) ?? {
+        hasDictationPracticed: false,
+        hasShadowingPracticed: false,
+      }
+      if (session.mode === 'DICTATION') {
+        existing.hasDictationPracticed = true
+      }
+      if (session.mode === 'SHADOWING') {
+        existing.hasShadowingPracticed = true
+      }
+      practiceFlagMap.set(session.videoId, existing)
+    }
 
     return {
       data: videos.map((v) => {
         const topics = v.videoMappings.map((mapping) => mapping.videoTopic)
+        const practiceFlag = practiceFlagMap.get(v.id)
         return {
           id: v.id,
           topicIds: topics.map((topic) => topic.id),
@@ -89,7 +107,8 @@ export class VideoRepository {
           topics,
           sentenceCount: v._count.sentences,
           sessionCount: v._count.learningSessions,
-          avgScore: scoreMap.get(v.id) ?? null,
+          hasDictationPracticed: practiceFlag?.hasDictationPracticed ?? false,
+          hasShadowingPracticed: practiceFlag?.hasShadowingPracticed ?? false,
         }
       }),
       total,
@@ -110,6 +129,8 @@ export class VideoRepository {
           },
         },
         sentences: { orderBy: { orderIndex: 'asc' } },
+        // mediaLinks relation does not exist on Video in Prisma schema.
+        // Load media vocabularies via separate query below.
         _count: { select: { sentences: true, learningSessions: true } },
       },
     })
@@ -125,6 +146,13 @@ export class VideoRepository {
 
     const topics = video.videoMappings.map((mapping) => mapping.videoTopic)
 
+    // fetch media vocabulary links directly (polymorphic association handled at app layer)
+    const mediaLinks = await this.prismaService.mediaVocabulary.findMany({
+      where: { mediaId: videoId, mediaType: 'VIDEO' },
+      include: { vocabulary: true },
+    })
+    const vocabularies = mediaLinks.map((link) => link.vocabulary)
+
     return {
       id: video.id,
       topicIds: topics.map((topic) => topic.id),
@@ -137,6 +165,7 @@ export class VideoRepository {
       deletedAt: video.deletedAt,
       topics,
       sentences: video.sentences,
+      vocabularies,
       sentenceCount: video._count.sentences,
       sessionCount: video._count.learningSessions,
       avgScore: avgScoreRaw[0]?.avgScore ?? null,
@@ -323,5 +352,26 @@ export class VideoRepository {
 
   deleteSentence(sentenceId: number) {
     return this.prismaService.videoSentence.delete({ where: { id: sentenceId } })
+  }
+
+  findVideosByTopicIds(topicIds: string[], excludeVideoId?: string) {
+    return this.prismaService.video.findMany({
+      where: {
+        deletedAt: null,
+        videoMappings: {
+          some: {
+            topicId: { in: topicIds },
+          },
+        },
+        ...(excludeVideoId && { id: { not: excludeVideoId } }),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        title: true,
+        thumbnailUrl: true,
+      },
+    })
   }
 }

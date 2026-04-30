@@ -1,5 +1,4 @@
 import { UserRole } from '@/common/constants/auth.constant'
-import envConfig from '@/common/utils/config'
 import { isDataValidationPrismaError, isNotFoundPrismaError } from '@/common/utils/helpers'
 import { VocabularyRepository } from '@/modules/vocabulary/vocabulary.repo'
 import {
@@ -15,7 +14,7 @@ import {
   UpdateTopicBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { createCipheriv, randomBytes } from 'crypto'
+import { encryptData } from '@/common/utils/encryption'
 
 @Injectable()
 export class VocabularyService {
@@ -34,17 +33,7 @@ export class VocabularyService {
     }
   }
 
-  // AES-256-CBC encryption
-  private encryptData(plainText: string): { encryptedData: string; iv: string } {
-    const key = Buffer.from(envConfig.ENCRYPTION_KEY, 'utf8')
-    const iv = randomBytes(16)
-    const cipher = createCipheriv('aes-256-cbc', key, iv)
-    const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()])
-    return {
-      encryptedData: encrypted.toString('base64'),
-      iv: iv.toString('hex'),
-    }
-  }
+  // Encryption helper extracted to common util
 
   private verifyOwnerOrAdmin(createdBy: string, userId: string, role: string): void {
     if (role === UserRole.ADMIN) return
@@ -132,7 +121,7 @@ export class VocabularyService {
     })
 
     // Encrypt danh sách từ
-    const { encryptedData, iv } = this.encryptData(JSON.stringify(vocabularies))
+    const { encryptedData, iv } = encryptData(JSON.stringify(vocabularies))
 
     return {
       id: list.id,

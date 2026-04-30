@@ -1,5 +1,5 @@
 import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from '@nestjs/common'
-import type { UploadedImageFile } from '@/common/types/uploaded-file.type'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 
 const IMAGE_MIME_TYPE_REGEX = /^(image\/(jpeg|jpg|png|webp))$/
 
@@ -7,7 +7,7 @@ const IMAGE_MIME_TYPE_REGEX = /^(image\/(jpeg|jpg|png|webp))$/
 export class ImageFileValidationPipe implements PipeTransform {
   constructor(private readonly isRequired = true) {}
 
-  transform(value: UploadedImageFile | undefined, _metadata: ArgumentMetadata) {
+  transform(value: UploadedFileData | undefined, _metadata: ArgumentMetadata) {
     if (!value) {
       if (this.isRequired) {
         throw new BadRequestException('thumbnail is required')
