@@ -246,14 +246,16 @@ model VocabularyList {
 model Vocabulary {
   id              String    @id @default(uuid()) @db.Uuid
   word            String
-  phonetic        String?
+  phoneticUk      String?   @map("phonetic_uk")
+  phoneticUs      String?   @map("phonetic_us")
   partOfSpeech    String?   @map("part_of_speech")
   meaningVi       String    @map("meaning_vi") @db.Text
   meaningEn       String?   @map("meaning_en") @db.Text
   exampleEn       String?   @map("example_en") @db.Text
   exampleVi       String?   @map("example_vi") @db.Text
   imageUrl        String?   @map("image_url")
-  audioUrl        String?   @map("audio_url")
+  audioUrlUk      String?   @map("audio_url_uk")
+  audioUrlUs      String?   @map("audio_url_us")
   audioExampleUrl String?   @map("audio_example_url")
   level           Level?
   createdBy       String    @map("created_by") @db.Uuid

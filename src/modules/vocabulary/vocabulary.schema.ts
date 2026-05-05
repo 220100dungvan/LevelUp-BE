@@ -42,14 +42,16 @@ export const GetTopicsResSchema = z.object({
 export const VocabularySchema = z.object({
   id: z.string().uuid(),
   word: z.string(),
-  phonetic: z.string().nullable(),
+  phoneticUk: z.string().nullable(),
+  phoneticUs: z.string().nullable(),
   partOfSpeech: z.string().nullable(),
   meaningVi: z.string(),
   meaningEn: z.string().nullable(),
   exampleEn: z.string().nullable(),
   exampleVi: z.string().nullable(),
   imageUrl: z.string().nullable(),
-  audioUrl: z.string().nullable(),
+  audioUrlUk: z.string().nullable(),
+  audioUrlUs: z.string().nullable(),
   audioExampleUrl: z.string().nullable(),
   level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).nullable(),
 })
@@ -57,14 +59,16 @@ export const VocabularySchema = z.object({
 export const CreateVocabularyBodySchema = z
   .object({
     word: z.string().min(1).max(200),
-    phonetic: z.string().max(200).optional(),
+    phoneticUk: z.string().max(200).optional(),
+    phoneticUs: z.string().max(200).optional(),
     partOfSpeech: z.string().max(100).optional(),
     meaningVi: z.string().min(1),
     meaningEn: z.string().optional(),
     exampleEn: z.string().optional(),
     exampleVi: z.string().optional(),
     imageUrl: z.string().url().optional(),
-    audioUrl: z.string().url().optional(),
+    audioUrlUk: z.string().url().optional(),
+    audioUrlUs: z.string().url().optional(),
     audioExampleUrl: z.string().url().optional(),
     level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
   })

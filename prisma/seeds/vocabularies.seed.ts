@@ -75,14 +75,16 @@ export async function seedVocabularies() {
         vocabulary = await prisma.vocabulary.create({
           data: {
             word: item.word,
-            phonetic: item.phonetic,
+            phoneticUk: item.phoneticUk,
+            phoneticUs: item.phoneticUs,
             partOfSpeech: item.partOfSpeech,
             meaningVi: item.meaningVi,
             meaningEn: item.meaningEn,
             exampleEn: item.exampleEn,
             exampleVi: item.exampleVi,
             imageUrl: item.imageUrl,
-            audioUrl: item.audioUrl,
+            audioUrlUk: item.audioUrlUk,
+            audioUrlUs: item.audioUrlUs,
             audioExampleUrl: item.audioExampleUrl,
             level: item.level ? levelMap[item.level] : null,
             createdBy: teacher.id,
