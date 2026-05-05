@@ -73,6 +73,24 @@ enum SessionMode {
   SHADOWING
 }
 
+ enum VoiceType {
+  UK_MALE
+  UK_FEMALE
+  US_MALE
+  US_FEMALE
+ }
+
+ enum QuizQuestionType {
+  MAIN_IDEA
+  DETAIL
+  INFERENCE
+  VOCABULARY
+  REFERENCE
+  PURPOSE_TONE
+  NOT_EXCEPT
+  SUMMARY
+}
+
 model User {
   id          String     @id @default(uuid()) @db.Uuid
   email       String     @unique
