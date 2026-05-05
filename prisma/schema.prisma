@@ -496,9 +496,42 @@ model Article {
   topicMappings ArticleTopicMapping[]
   creator       User                  @relation(fields: [createdBy], references: [id])
   progress      UserArticleProgress[]
+  quizQuestions ArticleQuizQuestion[]
 
   @@unique([level, id])
   @@map("articles")
+}
+
+model ArticleQuizQuestion {
+  id             String             @id @default(uuid()) @db.Uuid
+  articleId      String             @map("article_id") @db.Uuid
+  questionText   String             @map("question_text") @db.Text
+  questionTextVi String?            @map("question_text_vi") @db.Text
+  types          QuizQuestionType[]                                    
+  evidenceText   String?            @map("evidence_text") @db.Text     
+  evidenceTextVi String?            @map("evidence_text_vi") @db.Text  
+  explanation    String?            @db.Text                          
+  orderIndex     Int                @default(0) @map("order_index")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  article Article             @relation(fields: [articleId], references: [id])
+  options ArticleQuizOption[]
+
+  @@index([articleId, orderIndex])
+  @@map("article_quiz_questions")
+}
+
+model ArticleQuizOption {
+  id         String  @id @default(uuid()) @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  text       String  @db.Text
+  textVi     String? @map("text_vi") @db.Text
+  isCorrect  Boolean @default(false) @map("is_correct")
+  orderIndex Int     @default(0) @map("order_index")
+
+  question ArticleQuizQuestion @relation(fields: [questionId], references: [id])
+
+  @@map("article_quiz_options")
 }
 
 model ArticleTopicMapping {
