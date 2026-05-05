@@ -262,6 +262,10 @@ model Vocabulary {
   createdAt       DateTime  @default(now()) @map("created_at")
   deletedAt       DateTime? @map("deleted_at")
 
+  isVerified      Boolean   @default(false) @map("is_verified")
+  verifiedBy      String?   @map("verified_by") @db.Uuid
+  verifiedAt      DateTime? @map("verified_at")
+
   creator      User                     @relation("VocabCreatedBy", fields: [createdBy], references: [id])
   listItems    VocabularyListItem[]
   userProgress UserVocabularyProgress[]
