@@ -11,6 +11,9 @@ import {
   GetArticlesResSchema,
   GetArticleTopicsResSchema,
   GetArticleVocabulariesResSchema,
+  StartArticleQuizResSchema,
+  SubmitArticleQuizBodySchema,
+  SubmitArticleQuizResSchema,
   UpdateArticleBodySchema,
   UpdateQuizQuestionSchema,
 } from '@/modules/article/article.schema'
@@ -25,6 +28,10 @@ export class ArticleDetailResDTO extends createZodDto(ArticleDetailResSchema) {}
 
 export class GetArticleVocabulariesResDTO extends createZodDto(GetArticleVocabulariesResSchema) {}
 export class GetArticleQuizResDTO extends createZodDto(GetArticleQuizResSchema) {}
+
+export class StartArticleQuizResDTO extends createZodDto(StartArticleQuizResSchema) {}
+export class SubmitArticleQuizBodyDTO extends createZodDto(SubmitArticleQuizBodySchema) {}
+export class SubmitArticleQuizResDTO extends createZodDto(SubmitArticleQuizResSchema) {}
 
 export class GetArticleContentResDTO extends createZodDto(GetArticleContentResSchema) {}
 

@@ -1,6 +1,7 @@
 import { PrismaService } from '@/common/services/prisma.service'
 import {
   Article,
+  ArticleQuizAttempt,
   ArticleQuizOption,
   ArticleQuizQuestion,
   ArticleStatus,
@@ -120,17 +121,12 @@ export class ArticleRepository {
     }))
   }
 
-  findQuizByArticleId(
-    articleId: string,
-  ): Promise<(ArticleQuizQuestion & { options: Omit<ArticleQuizOption, 'isCorrect'>[] })[]> {
+  findQuizByArticleId(articleId: string): Promise<(ArticleQuizQuestion & { options: ArticleQuizOption[] })[]> {
     return this.prismaService.articleQuizQuestion.findMany({
       where: { articleId },
       orderBy: { orderIndex: 'asc' },
       include: {
         options: {
-          omit: {
-            isCorrect: true,
-          },
           orderBy: { orderIndex: 'asc' },
         },
       },
@@ -324,5 +320,87 @@ export class ArticleRepository {
     // Xóa options trước do không có cascade
     await this.prismaService.articleQuizOption.deleteMany({ where: { questionId } })
     await this.prismaService.articleQuizQuestion.delete({ where: { id: questionId } })
+  }
+
+  countQuizQuestions(articleId: string): Promise<number> {
+    return this.prismaService.articleQuizQuestion.count({ where: { articleId } })
+  }
+
+  createQuizAttempt(payload: {
+    userId: string
+    articleId: string
+    totalQuestions: number
+  }): Promise<ArticleQuizAttempt> {
+    return this.prismaService.articleQuizAttempt.create({
+      data: {
+        userId: payload.userId,
+        articleId: payload.articleId,
+        totalQuestions: payload.totalQuestions,
+      },
+    })
+  }
+
+  findQuizAttemptById(attemptId: number): Promise<ArticleQuizAttempt | null> {
+    return this.prismaService.articleQuizAttempt.findUnique({ where: { id: attemptId } })
+  }
+
+  findQuizQuestionsForScoring(articleId: string): Promise<
+    {
+      id: string
+      questionTextVi: string | null
+      evidenceText: string | null
+      evidenceTextVi: string | null
+      explanation: string | null
+      options: { id: string; text: string; textVi: string | null; isCorrect: boolean }[]
+    }[]
+  > {
+    return this.prismaService.articleQuizQuestion.findMany({
+      where: { articleId },
+      orderBy: { orderIndex: 'asc' },
+      select: {
+        id: true,
+        questionTextVi: true,
+        evidenceText: true,
+        evidenceTextVi: true,
+        explanation: true,
+        options: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            text: true,
+            textVi: true,
+            isCorrect: true,
+          },
+        },
+      },
+    })
+  }
+
+  async submitQuizAttempt(payload: {
+    attemptId: number
+    totalQuestions: number
+    correctCount: number
+    finishedAt: Date
+    answerLogs: { questionId: string; selectedOptionId: string | null; isCorrect: boolean }[]
+  }): Promise<void> {
+    await this.prismaService.$transaction(async (tx) => {
+      await tx.articleQuizAnswerLog.createMany({
+        data: payload.answerLogs.map((l) => ({
+          attemptId: payload.attemptId,
+          questionId: l.questionId,
+          selectedOptionId: l.selectedOptionId,
+          isCorrect: l.isCorrect,
+        })),
+      })
+
+      await tx.articleQuizAttempt.update({
+        where: { id: payload.attemptId },
+        data: {
+          totalQuestions: payload.totalQuestions,
+          correctCount: payload.correctCount,
+          finishedAt: payload.finishedAt,
+        },
+      })
+    })
   }
 }

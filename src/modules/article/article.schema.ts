@@ -85,7 +85,10 @@ export const QuizOptionSchema = z.object({
   orderIndex: z.number().int(),
 })
 
-export const QuizOptionPublicSchema = QuizOptionSchema.omit({ isCorrect: true })
+export const QuizOptionPublicSchema = QuizOptionSchema.omit({
+  isCorrect: true,
+  textVi: true,
+})
 
 export const QuizQuestionSchema = z.object({
   id: z.string().uuid(),
@@ -111,7 +114,12 @@ export const QuizQuestionSchema = z.object({
   options: z.array(QuizOptionSchema),
 })
 
-export const QuizQuestionPublicSchema = QuizQuestionSchema.extend({
+export const QuizQuestionPublicSchema = QuizQuestionSchema.omit({
+  questionTextVi: true,
+  evidenceText: true,
+  evidenceTextVi: true,
+  explanation: true,
+}).extend({
   options: z.array(QuizOptionPublicSchema),
 })
 
@@ -120,10 +128,11 @@ export const VocabularyWithAntonymAndSynonymSchema = VocabularySchema.extend({
   hasAntonyms: z.array(z.object({ id: z.string().uuid(), word: z.string() })),
 })
 
+//admin
 export const ArticleDetailResSchema = z.object({
   article: ArticleSchema,
   vocabularies: z.array(VocabularyWithAntonymAndSynonymSchema),
-  quizQuestions: z.array(QuizQuestionPublicSchema),
+  quizQuestions: z.array(QuizQuestionSchema),
 })
 
 export const GetArticleVocabulariesResSchema = z.object({
@@ -133,6 +142,67 @@ export const GetArticleVocabulariesResSchema = z.object({
 export const GetArticleQuizResSchema = z.object({
   data: z.array(QuizQuestionPublicSchema),
 })
+
+export const StartArticleQuizResSchema = z.object({
+  attemptId: z.number().int(),
+  quizQuestions: z.array(QuizQuestionPublicSchema),
+  startedAt: z.date(),
+})
+
+export const SubmitArticleQuizAnswerSchema = z
+  .object({
+    questionId: z.string().uuid(),
+    selectedOptionId: z.string().uuid().nullable().optional().default(null),
+  })
+  .strict()
+
+export const SubmitArticleQuizBodySchema = z
+  .object({
+    attemptId: z.coerce.number().int().positive(),
+    answers: z.array(SubmitArticleQuizAnswerSchema).optional().default([]),
+  })
+  .strict()
+  .superRefine(({ answers }, ctx) => {
+    const seenQuestionIds = new Set<string>()
+    for (let i = 0; i < answers.length; i++) {
+      const qid = answers[i].questionId
+      if (seenQuestionIds.has(qid)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Mỗi questionId chỉ được xuất hiện 1 lần',
+          path: ['answers', i, 'questionId'],
+        })
+      }
+      seenQuestionIds.add(qid)
+    }
+  })
+
+export const SubmitArticleQuizAnswerResultSchema = z
+  .object({
+    question: z.object({
+      questionId: z.string().uuid(),
+      questionTextVi: z.string().nullable(),
+      evidenceText: z.string().nullable(),
+      evidenceTextVi: z.string().nullable(),
+      explanation: z.string().nullable(),
+    }),
+    options: z.array(QuizOptionSchema.pick({ id: true, text: true, textVi: true })),
+    selectedOptionId: z.string().uuid().nullable(),
+    correctOptionId: z.string().uuid(),
+    isCorrect: z.boolean(),
+  })
+  .strict()
+
+export const SubmitArticleQuizResSchema = z
+  .object({
+    attemptId: z.number().int(),
+    totalQuestions: z.number().int(),
+    correctCount: z.number().int(),
+    scorePct: z.number().min(0).max(100),
+    finishedAt: z.date(),
+    results: z.array(SubmitArticleQuizAnswerResultSchema),
+  })
+  .strict()
 
 export const GetArticleContentResSchema = ArticleSchema
 
@@ -295,3 +365,6 @@ export type CreateQuizBodyType = z.infer<typeof CreateQuizBodySchema>
 export type CreateArticleResType = z.infer<typeof CreateArticleResSchema>
 export type CreateQuizQuestionType = z.infer<typeof CreateQuizQuestionSchema>
 export type UpdateQuizQuestionType = z.infer<typeof UpdateQuizQuestionSchema>
+export type StartArticleQuizResType = z.infer<typeof StartArticleQuizResSchema>
+export type SubmitArticleQuizBodyType = z.infer<typeof SubmitArticleQuizBodySchema>
+export type SubmitArticleQuizResType = z.infer<typeof SubmitArticleQuizResSchema>

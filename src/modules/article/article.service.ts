@@ -4,10 +4,11 @@ import {
   CreateArticleBodyType,
   CreateQuizBodyType,
   GetArticlesQueryType,
+  SubmitArticleQuizBodyType,
   UpdateArticleBodyType,
   UpdateQuizQuestionType,
 } from '@/modules/article/article.schema'
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 
 @Injectable()
 export class ArticleService {
@@ -82,6 +83,125 @@ export class ArticleService {
     if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
     const quizQuestions = await this.articleRepository.findQuizByArticleId(articleId)
     return { data: quizQuestions }
+  }
+
+  async startArticleQuiz(userId: string, articleId: string) {
+    const article = await this.articleRepository.findArticleById(articleId)
+    if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
+    const quizQuestions = await this.articleRepository.findQuizByArticleId(articleId)
+
+    const attempt = await this.articleRepository.createQuizAttempt({
+      userId,
+      articleId,
+      totalQuestions: quizQuestions.length,
+    })
+
+    return {
+      attemptId: attempt.id,
+      totalQuestions: attempt.totalQuestions,
+      quizQuestions,
+      startedAt: attempt.startedAt,
+    }
+  }
+
+  async submitArticleQuiz(userId: string, articleId: string, body: SubmitArticleQuizBodyType) {
+    const article = await this.articleRepository.findArticleById(articleId)
+    if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
+
+    const attempt = await this.articleRepository.findQuizAttemptById(body.attemptId)
+    if (!attempt) throw new NotFoundException([{ message: 'Error.QuizAttemptNotFound' }])
+    if (attempt.userId !== userId) throw new ForbiddenException([{ message: 'Error.Forbidden' }])
+    if (attempt.articleId !== articleId)
+      throw new BadRequestException([{ message: 'Error.QuizAttemptNotMatchArticle' }])
+    if (attempt.finishedAt) throw new BadRequestException([{ message: 'Error.QuizAttemptAlreadyFinished' }])
+
+    const quizQuestions = await this.articleRepository.findQuizQuestionsForScoring(articleId)
+    if (quizQuestions.length === 0) throw new BadRequestException([{ message: 'Error.QuizNotFound' }])
+
+    const questionIdSet = new Set(quizQuestions.map((q) => q.id))
+    for (const a of body.answers) {
+      if (!questionIdSet.has(a.questionId)) {
+        throw new BadRequestException([{ message: 'Error.InvalidQuizQuestion' }])
+      }
+    }
+
+    const answerByQuestionId = new Map<string, string | null>()
+    for (const a of body.answers) {
+      answerByQuestionId.set(a.questionId, a.selectedOptionId ?? null)
+    }
+
+    let correctCount = 0
+    const answerLogs: { questionId: string; selectedOptionId: string | null; isCorrect: boolean }[] = []
+    const answerResults: {
+      question: {
+        questionId: string
+        questionTextVi: string | null
+        evidenceText: string | null
+        evidenceTextVi: string | null
+        explanation: string | null
+      }
+      options: { id: string; text: string; textVi: string | null }[]
+      selectedOptionId: string | null
+      correctOptionId: string
+      isCorrect: boolean
+    }[] = []
+
+    for (const q of quizQuestions) {
+      const selectedOptionId = answerByQuestionId.get(q.id) ?? null
+
+      const correctOptions = q.options.filter((o) => o.isCorrect)
+      if (correctOptions.length !== 1) {
+        throw new BadRequestException([{ message: 'Error.InvalidQuizData' }])
+      }
+      const correctOptionId = correctOptions[0].id
+
+      if (selectedOptionId !== null && !q.options.some((o) => o.id === selectedOptionId)) {
+        throw new BadRequestException([{ message: 'Error.InvalidQuizOption' }])
+      }
+
+      const isCorrect = selectedOptionId !== null && selectedOptionId === correctOptionId
+      if (isCorrect) correctCount++
+
+      answerLogs.push({
+        questionId: q.id,
+        selectedOptionId,
+        isCorrect,
+      })
+
+      answerResults.push({
+        question: {
+          questionId: q.id,
+          questionTextVi: q.questionTextVi,
+          evidenceText: q.evidenceText,
+          evidenceTextVi: q.evidenceTextVi,
+          explanation: q.explanation,
+        },
+        options: q.options.map((o) => ({ id: o.id, text: o.text, textVi: o.textVi })),
+        selectedOptionId,
+        correctOptionId,
+        isCorrect,
+      })
+    }
+
+    const finishedAt = new Date()
+    await this.articleRepository.submitQuizAttempt({
+      attemptId: attempt.id,
+      totalQuestions: quizQuestions.length,
+      correctCount,
+      finishedAt,
+      answerLogs,
+    })
+
+    const scorePct = quizQuestions.length === 0 ? 0 : Math.round((correctCount / quizQuestions.length) * 100)
+
+    return {
+      attemptId: attempt.id,
+      totalQuestions: quizQuestions.length,
+      correctCount,
+      scorePct,
+      finishedAt,
+      results: answerResults,
+    }
   }
 
   async getArticleContent(articleId: string) {

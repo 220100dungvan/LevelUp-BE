@@ -16,11 +16,26 @@ import {
   GetArticlesResDTO,
   GetArticleTopicsResDTO,
   GetArticleVocabulariesResDTO,
+  StartArticleQuizResDTO,
+  SubmitArticleQuizBodyDTO,
+  SubmitArticleQuizResDTO,
   UpdateArticleBodyDTO,
   UpdateQuizQuestionBodyDTO,
 } from '@/modules/article/article.dto'
 import { ArticleService } from '@/modules/article/article.service'
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common'
 import { ZodResponse } from 'nestjs-zod'
 
 @Controller('articles')
@@ -44,7 +59,7 @@ export class ArticleController {
   @Get(':articleId')
   @IsPublic()
   @ZodResponse({ type: ArticleDetailResDTO })
-  getArticleDetail(@Param('articleId') articleId: string) {
+  getArticleDetail(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
     return this.articleService.getArticleDetail(articleId)
   }
 
@@ -52,7 +67,7 @@ export class ArticleController {
   @Get(':articleId/vocabularies')
   @IsPublic()
   @ZodResponse({ type: GetArticleVocabulariesResDTO })
-  getArticleVocabularies(@Param('articleId') articleId: string) {
+  getArticleVocabularies(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
     return this.articleService.getArticleVocabularies(articleId)
   }
 
@@ -60,15 +75,32 @@ export class ArticleController {
   @Get(':articleId/quiz')
   @IsPublic()
   @ZodResponse({ type: GetArticleQuizResDTO })
-  getArticleQuiz(@Param('articleId') articleId: string) {
+  getArticleQuiz(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
     return this.articleService.getArticleQuiz(articleId)
+  }
+
+  @Post(':articleId/quiz/start')
+  @ZodResponse({ type: StartArticleQuizResDTO })
+  startArticleQuiz(@Param('articleId', new ParseUUIDPipe()) articleId: string, @ActiveUser('userId') userId: string) {
+    return this.articleService.startArticleQuiz(userId, articleId)
+  }
+
+  @Post(':articleId/quiz/submit')
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: SubmitArticleQuizResDTO })
+  submitArticleQuiz(
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @Body() body: SubmitArticleQuizBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.articleService.submitArticleQuiz(userId, articleId, body)
   }
 
   //lấy riêng nội dung bài
   @Get(':articleId/content')
   @IsPublic()
   @ZodResponse({ type: GetArticleContentResDTO })
-  getArticleContent(@Param('articleId') articleId: string) {
+  getArticleContent(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
     return this.articleService.getArticleContent(articleId)
   }
 
@@ -76,7 +108,7 @@ export class ArticleController {
   @HttpCode(HttpStatus.OK)
   @ZodResponse({ type: ArticleProgressResDTO })
   updateProgress(
-    @Param('articleId') articleId: string,
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
     @Body() body: ArticleProgressBodyDTO,
     @ActiveUser('userId') userId: string,
   ) {
@@ -93,39 +125,37 @@ export class ArticleController {
   @Patch(':articleId')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  updateArticle(@Param('articleId') articleId: string, @Body() body: UpdateArticleBodyDTO) {
+  updateArticle(@Param('articleId', new ParseUUIDPipe()) articleId: string, @Body() body: UpdateArticleBodyDTO) {
     return this.articleService.adminUpdateArticle(articleId, body)
   }
 
   @Delete(':articleId')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  deleteArticle(@Param('articleId') articleId: string) {
+  deleteArticle(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
     return this.articleService.adminDeleteArticle(articleId)
   }
-
-  // @Get(':articleId/quiz')
-  // adminGetQuiz(@Param('articleId') articleId: string) {
-  //   return this.articleService.adminGetQuiz(articleId)
-  // }
 
   @Post(':articleId/quiz')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  createQuiz(@Param('articleId') articleId: string, @Body() body: CreateQuizBodyDTO) {
+  createQuiz(@Param('articleId', new ParseUUIDPipe()) articleId: string, @Body() body: CreateQuizBodyDTO) {
     return this.articleService.createQuiz(articleId, body)
   }
 
   @Patch('quiz/:questionId')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  updateQuizQuestion(@Param('questionId') questionId: string, @Body() body: UpdateQuizQuestionBodyDTO) {
+  updateQuizQuestion(
+    @Param('questionId', new ParseUUIDPipe()) questionId: string,
+    @Body() body: UpdateQuizQuestionBodyDTO,
+  ) {
     return this.articleService.updateQuizQuestion(questionId, body)
   }
 
   @Delete('quiz/:questionId')
   @ZodResponse({ type: MessageResDTO })
-  deleteQuizQuestion(@Param('questionId') questionId: string) {
+  deleteQuizQuestion(@Param('questionId', new ParseUUIDPipe()) questionId: string) {
     return this.articleService.deleteQuizQuestion(questionId)
   }
 }
