@@ -125,6 +125,7 @@ model User {
   classMemberships       ClassMember[]
   listProgress           UserListProgress[]
   verifiedVocabularies   Vocabulary[]             @relation("VocabVerifiedBy")
+  quizAttempts           ArticleQuizAttempt[]
 
   @@map("users")
 }
@@ -497,6 +498,7 @@ model Article {
   creator       User                  @relation(fields: [createdBy], references: [id])
   progress      UserArticleProgress[]
   quizQuestions ArticleQuizQuestion[]
+  quizAttempts  ArticleQuizAttempt[]
 
   @@unique([level, id])
   @@map("articles")
@@ -507,15 +509,16 @@ model ArticleQuizQuestion {
   articleId      String             @map("article_id") @db.Uuid
   questionText   String             @map("question_text") @db.Text
   questionTextVi String?            @map("question_text_vi") @db.Text
-  types          QuizQuestionType[]                                    
-  evidenceText   String?            @map("evidence_text") @db.Text     
-  evidenceTextVi String?            @map("evidence_text_vi") @db.Text  
-  explanation    String?            @db.Text                          
+  types          QuizQuestionType[]
+  evidenceText   String?            @map("evidence_text") @db.Text
+  evidenceTextVi String?            @map("evidence_text_vi") @db.Text
+  explanation    String?            @db.Text
   orderIndex     Int                @default(0) @map("order_index")
   createdAt      DateTime           @default(now()) @map("created_at")
 
-  article Article             @relation(fields: [articleId], references: [id])
-  options ArticleQuizOption[]
+  article    Article                @relation(fields: [articleId], references: [id])
+  options    ArticleQuizOption[]
+  answerLogs ArticleQuizAnswerLog[]
 
   @@index([articleId, orderIndex])
   @@map("article_quiz_questions")
@@ -529,9 +532,42 @@ model ArticleQuizOption {
   isCorrect  Boolean @default(false) @map("is_correct")
   orderIndex Int     @default(0) @map("order_index")
 
-  question ArticleQuizQuestion @relation(fields: [questionId], references: [id])
+  question   ArticleQuizQuestion    @relation(fields: [questionId], references: [id])
+  answerLogs ArticleQuizAnswerLog[]
 
   @@map("article_quiz_options")
+}
+
+model ArticleQuizAttempt {
+  id             Int       @id @default(autoincrement())
+  userId         String    @map("user_id") @db.Uuid
+  articleId      String    @map("article_id") @db.Uuid
+  totalQuestions Int       @map("total_questions")
+  correctCount   Int       @default(0) @map("correct_count")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+
+  user       User                   @relation(fields: [userId], references: [id])
+  article    Article                @relation(fields: [articleId], references: [id])
+  answerLogs ArticleQuizAnswerLog[]
+
+  @@index([userId, articleId])
+  @@map("article_quiz_attempts")
+}
+
+model ArticleQuizAnswerLog {
+  id               Int     @id @default(autoincrement())
+  attemptId        Int     @map("attempt_id")
+  questionId       String  @map("question_id") @db.Uuid
+  selectedOptionId String? @map("selected_option_id") @db.Uuid
+  isCorrect        Boolean @map("is_correct")
+
+  attempt        ArticleQuizAttempt  @relation(fields: [attemptId], references: [id])
+  question       ArticleQuizQuestion @relation(fields: [questionId], references: [id])
+  selectedOption ArticleQuizOption?  @relation(fields: [selectedOptionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@map("article_quiz_answer_logs")
 }
 
 model ArticleTopicMapping {
