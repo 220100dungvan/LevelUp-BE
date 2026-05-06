@@ -17,6 +17,7 @@ import { DictationModule } from './modules/dictation/dictation.module'
 import { VideoSessionModule } from '@/modules/video-session/video-session.module'
 import { ShadowingModule } from './modules/shadowing/shadowing.module'
 import { SpeakingModule } from './modules/speaking/speaking.module'
+import { ArticleModule } from './modules/article/article.module'
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SpeakingModule } from './modules/speaking/speaking.module'
     VideoSessionModule,
     ShadowingModule,
     SpeakingModule,
+    ArticleModule,
   ],
   controllers: [AppController],
   providers: [

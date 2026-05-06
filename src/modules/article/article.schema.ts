@@ -1,0 +1,297 @@
+import { ArticleStatus, QuizQuestionType, VoiceType } from '@/common/constants/article.constant'
+import { Level } from '@/common/constants/vocabulary.constant'
+import { VocabularySchema } from '@/modules/vocabulary/vocabulary.schema'
+import z from 'zod'
+
+export const ArticleTopicSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  thumbnailUrl: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+export const GetArticleTopicsResSchema = z.object({
+  data: z.array(ArticleTopicSchema),
+})
+
+export const ArticleSchema = z.object({
+  id: z.string().uuid(),
+  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+  title: z.string(),
+  content: z.string(),
+  contentVi: z.string().nullable(),
+  thumbnailUrl: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+  status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]),
+  publishedAt: z.date().nullable(),
+  audioUrl: z.string().nullable(),
+  voiceType: z.enum([VoiceType.UK_MALE, VoiceType.UK_FEMALE, VoiceType.US_MALE, VoiceType.US_FEMALE]).nullable(),
+  readingTimeMin: z.number().int().nullable(),
+  createdAt: z.date(),
+  topics: z.array(ArticleTopicSchema).optional(),
+})
+
+export const ArticleListItemSchema = z.object({
+  id: z.string().uuid(),
+  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+  title: z.string(),
+  thumbnailUrl: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+  status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]),
+  audioUrl: z.string().nullable(),
+  voiceType: z.enum([VoiceType.UK_MALE, VoiceType.UK_FEMALE, VoiceType.US_MALE, VoiceType.US_FEMALE]).nullable(),
+  readingTimeMin: z.number().int().nullable(),
+  createdAt: z.date(),
+  topics: z.array(ArticleTopicSchema),
+})
+
+export const GetArticlesResSchema = z.object({
+  data: z.array(ArticleListItemSchema),
+  pagination: z.object({
+    total: z.number(),
+    page: z.number(),
+    limit: z.number(),
+    totalPages: z.number(),
+  }),
+})
+
+export const GetArticlesQuerySchema = z
+  .object({
+    // Filter nhiều topic cùng lúc: ?topicIds=id1,id2 hoặc topicIds[]=id1&topicIds[]=id2
+    topicIds: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .transform((val) => {
+        if (!val) return undefined
+        const arr = Array.isArray(val) ? val : val.split(',')
+        return arr.map((s) => s.trim()).filter(Boolean)
+      }),
+    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]).optional(),
+    search: z.string().optional(),
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().optional().default(24),
+  })
+  .strict()
+
+export const QuizOptionSchema = z.object({
+  id: z.string().uuid(),
+  questionId: z.string().uuid(),
+  text: z.string(),
+  textVi: z.string().nullable(),
+  isCorrect: z.boolean(),
+  orderIndex: z.number().int(),
+})
+
+export const QuizOptionPublicSchema = QuizOptionSchema.omit({ isCorrect: true })
+
+export const QuizQuestionSchema = z.object({
+  id: z.string().uuid(),
+  articleId: z.string().uuid(),
+  questionText: z.string(),
+  questionTextVi: z.string().nullable(),
+  types: z.array(
+    z.enum([
+      QuizQuestionType.MAIN_IDEA,
+      QuizQuestionType.DETAIL,
+      QuizQuestionType.INFERENCE,
+      QuizQuestionType.VOCABULARY,
+      QuizQuestionType.REFERENCE,
+      QuizQuestionType.PURPOSE_TONE,
+      QuizQuestionType.NOT_EXCEPT,
+      QuizQuestionType.SUMMARY,
+    ]),
+  ),
+  evidenceText: z.string().nullable(),
+  evidenceTextVi: z.string().nullable(),
+  explanation: z.string().nullable(),
+  orderIndex: z.number().int(),
+  options: z.array(QuizOptionSchema),
+})
+
+export const QuizQuestionPublicSchema = QuizQuestionSchema.extend({
+  options: z.array(QuizOptionPublicSchema),
+})
+
+export const VocabularyWithAntonymAndSynonymSchema = VocabularySchema.extend({
+  hasSynonyms: z.array(z.object({ id: z.string().uuid(), word: z.string() })),
+  hasAntonyms: z.array(z.object({ id: z.string().uuid(), word: z.string() })),
+})
+
+export const ArticleDetailResSchema = z.object({
+  article: ArticleSchema,
+  vocabularies: z.array(VocabularyWithAntonymAndSynonymSchema),
+  quizQuestions: z.array(QuizQuestionPublicSchema),
+})
+
+export const GetArticleVocabulariesResSchema = z.object({
+  data: z.array(VocabularyWithAntonymAndSynonymSchema),
+})
+
+export const GetArticleQuizResSchema = z.object({
+  data: z.array(QuizQuestionPublicSchema),
+})
+
+export const GetArticleContentResSchema = ArticleSchema
+
+export const ArticleProgressBodySchema = z
+  .object({
+    progressPct: z.number().min(0).max(100),
+    completed: z.boolean().optional(),
+  })
+  .strict()
+
+export const ArticleProgressResSchema = z.object({
+  message: z.string(),
+  progressPct: z.number(),
+  completed: z.boolean(),
+})
+
+export const UpdateArticleBodySchema = z
+  .object({
+    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    title: z.string().min(1).max(500).optional(),
+    content: z.string().min(1).optional(),
+    contentVi: z.string().optional(),
+    thumbnailUrl: z.string().url().optional(),
+    sourceUrl: z.string().url().optional(),
+    audioUrl: z.string().url().optional(),
+    voiceType: z.enum([VoiceType.UK_FEMALE, VoiceType.UK_MALE, VoiceType.US_FEMALE, VoiceType.US_MALE]).optional(),
+    readingTimeMin: z.number().int().positive().optional(),
+    status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]).optional(),
+    topicIds: z.array(z.string().uuid()).min(1).optional(),
+  })
+  .strict()
+
+export const CreateQuizOptionSchema = z.object({
+  text: z.string().min(1),
+  textVi: z.string().optional(),
+  isCorrect: z.boolean(),
+  orderIndex: z.number().int().min(0).optional(),
+})
+
+export const CreateQuizQuestionSchema = z
+  .object({
+    questionText: z.string().min(1),
+    questionTextVi: z.string().optional(),
+    types: z
+      .array(
+        z.enum([
+          QuizQuestionType.MAIN_IDEA,
+          QuizQuestionType.DETAIL,
+          QuizQuestionType.INFERENCE,
+          QuizQuestionType.VOCABULARY,
+          QuizQuestionType.REFERENCE,
+          QuizQuestionType.PURPOSE_TONE,
+          QuizQuestionType.NOT_EXCEPT,
+          QuizQuestionType.SUMMARY,
+        ]),
+      )
+      .min(1),
+    evidenceText: z.string().optional(),
+    evidenceTextVi: z.string().optional(),
+    explanation: z.string().optional(),
+    orderIndex: z.number().int().min(0).optional(),
+    options: z.array(CreateQuizOptionSchema).length(4),
+  })
+  .strict()
+  .superRefine(({ options }, ctx) => {
+    const correctCount = options.filter((o) => o.isCorrect).length
+    if (correctCount !== 1) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Mỗi câu hỏi phải có đúng 1 đáp án đúng',
+        path: ['options'],
+      })
+    }
+  })
+
+export const CreateArticleBodySchema = z
+  .object({
+    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+    title: z.string().min(1).max(500),
+    content: z.string().min(1),
+    contentVi: z.string().optional(),
+    thumbnailUrl: z.string().url().optional(),
+    sourceUrl: z.string().url().optional(),
+    audioUrl: z.string().url().optional(),
+    voiceType: z.enum([VoiceType.UK_FEMALE, VoiceType.UK_MALE, VoiceType.US_FEMALE, VoiceType.US_MALE]).optional(),
+    readingTimeMin: z.number().int().positive().optional(),
+    status: z
+      .enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED])
+      .optional()
+      .default(ArticleStatus.DRAFT),
+    topicIds: z.array(z.string().uuid()).min(1, 'Phải có ít nhất 1 topic'),
+    vocabularies: z
+      .array(
+        z.object({
+          word: z.string().min(1),
+          phoneticUk: z.string().optional(),
+          phoneticUs: z.string().optional(),
+          partOfSpeech: z.string().optional(),
+          meaningVi: z.string().min(1),
+          meaningEn: z.string().optional(),
+          exampleEn: z.string().optional(),
+          exampleVi: z.string().optional(),
+          imageUrl: z.string().url().optional(),
+          audioUrlUk: z.string().url().optional(),
+          audioUrlUs: z.string().url().optional(),
+          audioExampleUrl: z.string().url().optional(),
+          level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+          synonymIds: z.array(z.string().uuid()).optional().default([]),
+          antonymIds: z.array(z.string().uuid()).optional().default([]),
+        }),
+      )
+      .optional()
+      .default([]),
+    quizQuestions: z.array(CreateQuizQuestionSchema).optional().default([]),
+  })
+  .strict()
+
+export const CreateArticleResSchema = z.object({
+  articleId: z.string().uuid(),
+  message: z.string(),
+})
+
+export const CreateQuizBodySchema = z
+  .object({
+    questions: z.array(CreateQuizQuestionSchema).min(1),
+  })
+  .strict()
+
+export const UpdateQuizQuestionSchema = z
+  .object({
+    questionText: z.string().min(1).optional(),
+    questionTextVi: z.string().optional(),
+    types: z
+      .array(
+        z.enum([
+          QuizQuestionType.MAIN_IDEA,
+          QuizQuestionType.DETAIL,
+          QuizQuestionType.INFERENCE,
+          QuizQuestionType.VOCABULARY,
+          QuizQuestionType.REFERENCE,
+          QuizQuestionType.PURPOSE_TONE,
+          QuizQuestionType.NOT_EXCEPT,
+          QuizQuestionType.SUMMARY,
+        ]),
+      )
+      .min(1)
+      .optional(),
+    evidenceText: z.string().optional(),
+    evidenceTextVi: z.string().optional(),
+    explanation: z.string().optional(),
+    orderIndex: z.number().int().min(0).optional(),
+  })
+  .strict()
+
+export type GetArticlesQueryType = z.infer<typeof GetArticlesQuerySchema>
+export type ArticleProgressBodyType = z.infer<typeof ArticleProgressBodySchema>
+export type UpdateArticleBodyType = z.infer<typeof UpdateArticleBodySchema>
+export type CreateArticleBodyType = z.infer<typeof CreateArticleBodySchema>
+export type CreateQuizBodyType = z.infer<typeof CreateQuizBodySchema>
+export type CreateArticleResType = z.infer<typeof CreateArticleResSchema>
+export type CreateQuizQuestionType = z.infer<typeof CreateQuizQuestionSchema>
+export type UpdateQuizQuestionType = z.infer<typeof UpdateQuizQuestionSchema>
