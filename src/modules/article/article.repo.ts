@@ -11,7 +11,11 @@ import {
   UserArticleProgress,
   Vocabulary,
 } from '@/generated/prisma/client'
-import { CreateArticleBodyType, CreateQuizQuestionType } from '@/modules/article/article.schema'
+import {
+  CreateArticleBodyType,
+  CreateArticleVocabularyType,
+  CreateQuizQuestionType,
+} from '@/modules/article/article.schema'
 import { Injectable } from '@nestjs/common'
 
 @Injectable()
@@ -186,7 +190,10 @@ export class ArticleRepository {
     })
   }
 
-  async createArticle(params: { body: CreateArticleBodyType; createdBy: string }): Promise<string> {
+  async createArticle(params: {
+    body: CreateArticleBodyType & { audioUrl?: string }
+    createdBy: string
+  }): Promise<string> {
     const { body, createdBy } = params
 
     return this.prismaService.$transaction(async (tx) => {
@@ -212,8 +219,13 @@ export class ArticleRepository {
         data: body.topicIds.map((topicId) => ({ articleId: article.id, topicId })),
       })
 
-      // 3. Upsert vocabularies + liên kết MediaVocabulary
-      for (const v of body.vocabularies) {
+      return article.id
+    })
+  }
+
+  async createArticleVocabularies(articleId: string, vocabularies: CreateArticleVocabularyType[], createdBy: string) {
+    return this.prismaService.$transaction(async (tx) => {
+      for (const v of vocabularies) {
         const vocab = await tx.vocabulary.upsert({
           where: {
             word_partOfSpeech: {
@@ -247,41 +259,12 @@ export class ArticleRepository {
           },
         })
 
-        // MediaVocabulary — polymorphic link
         await tx.mediaVocabulary.upsert({
-          where: { vocabularyId_mediaId: { vocabularyId: vocab.id, mediaId: article.id } },
-          create: { vocabularyId: vocab.id, mediaId: article.id, mediaType: 'ARTICLE' },
+          where: { vocabularyId_mediaId: { vocabularyId: vocab.id, mediaId: articleId } },
+          create: { vocabularyId: vocab.id, mediaId: articleId, mediaType: 'ARTICLE' },
           update: {},
         })
       }
-
-      // 4. Tạo quiz questions + options
-      for (const q of body.quizQuestions) {
-        await tx.articleQuizQuestion.create({
-          data: {
-            articleId: article.id,
-            questionText: q.questionText,
-            questionTextVi: q.questionTextVi ?? null,
-            types: q.types,
-            evidenceText: q.evidenceText ?? null,
-            evidenceTextVi: q.evidenceTextVi ?? null,
-            explanation: q.explanation ?? null,
-            orderIndex: q.orderIndex ?? 0,
-            options: {
-              createMany: {
-                data: q.options.map((opt, idx) => ({
-                  text: opt.text,
-                  textVi: opt.textVi ?? null,
-                  isCorrect: opt.isCorrect,
-                  orderIndex: opt.orderIndex ?? idx,
-                })),
-              },
-            },
-          },
-        })
-      }
-
-      return article.id
     })
   }
 

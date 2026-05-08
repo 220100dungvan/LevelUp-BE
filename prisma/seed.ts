@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { seedTopics } from './seeds/topics.seed'
+import { seedArticleTopics } from './seeds/article-topics.seed'
 import { seedSpeakingTopics } from './seeds/speaking-topics.seed'
 import { seedVocabularyLists } from './seeds/vocabulary-lists.seed'
 import { seedVocabularies } from './seeds/vocabularies.seed'
@@ -9,6 +10,7 @@ async function main() {
 
   try {
     await seedTopics()
+    await seedArticleTopics()
     await seedSpeakingTopics()
     await seedVocabularyLists()
     await seedVocabularies()

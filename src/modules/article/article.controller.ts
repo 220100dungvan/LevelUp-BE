@@ -9,6 +9,7 @@ import {
   ArticleProgressResDTO,
   CreateArticleBodyDTO,
   CreateArticleResDTO,
+  CreateArticleVocabulariesBodyDTO,
   CreateQuizBodyDTO,
   GetArticleContentResDTO,
   GetArticleQuizResDTO,
@@ -35,8 +36,16 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { ZodResponse } from 'nestjs-zod'
+import {
+  optionalImageFileValidationPipe,
+  requiredImageFileValidationPipe,
+} from '@/common/pipes/image-file-validation.pipe'
 
 @Controller('articles')
 export class ArticleController {
@@ -117,16 +126,38 @@ export class ArticleController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @ZodResponse({ type: CreateArticleResDTO })
-  saveArticle(@Body() body: CreateArticleBodyDTO, @ActiveUser('userId') userId: string) {
-    return this.articleService.createArticle(body, userId)
+  createArticle(
+    @UploadedFile(requiredImageFileValidationPipe)
+    thumbnail: UploadedFileData | undefined,
+    @Body() body: CreateArticleBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.articleService.createArticle(body, userId, thumbnail)
+  }
+
+  @Post(':articleId/vocabularies')
+  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @ZodResponse({ type: MessageResDTO })
+  createArticleVocabularies(
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @Body() body: CreateArticleVocabulariesBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.articleService.createArticleVocabularies(articleId, body, userId)
   }
 
   @Patch(':articleId')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @ZodResponse({ type: MessageResDTO })
-  updateArticle(@Param('articleId', new ParseUUIDPipe()) articleId: string, @Body() body: UpdateArticleBodyDTO) {
-    return this.articleService.adminUpdateArticle(articleId, body)
+  updateArticle(
+    @UploadedFile(optionalImageFileValidationPipe) thumbnail: UploadedFileData | undefined,
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @Body() body: UpdateArticleBodyDTO,
+  ) {
+    return this.articleService.updateArticle(articleId, body, thumbnail)
   }
 
   @Delete(':articleId')

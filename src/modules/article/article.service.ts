@@ -1,18 +1,32 @@
+import { CloudinaryService } from '@/common/services/cloudinary.service'
+import { VoiceType, VoiceTypeType } from '@/common/constants/article.constant'
+import envConfig from '@/common/utils/config'
 import { ArticleRepository } from '@/modules/article/article.repo'
 import {
   ArticleProgressBodyType,
   CreateArticleBodyType,
   CreateQuizBodyType,
+  CreateArticleVocabulariesBodyType,
   GetArticlesQueryType,
   SubmitArticleQuizBodyType,
   UpdateArticleBodyType,
   UpdateQuizQuestionType,
 } from '@/modules/article/article.schema'
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
+import { UploadedFileData } from '@/common/types/uploaded-file.type'
 
 @Injectable()
 export class ArticleService {
-  constructor(private readonly articleRepository: ArticleRepository) {}
+  constructor(
+    private readonly articleRepository: ArticleRepository,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   async getTopics() {
     const topics = await this.articleRepository.findAllTopics()
@@ -231,11 +245,24 @@ export class ArticleService {
     }
   }
 
-  async adminUpdateArticle(articleId: string, body: UpdateArticleBodyType) {
+  async updateArticle(articleId: string, body: UpdateArticleBodyType, thumbnailFile?: UploadedFileData) {
     const article = await this.articleRepository.findArticleById(articleId)
     if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
-
     const { topicIds, ...rest } = body
+
+    let thumbnailUrlToSet: string | undefined = undefined
+    if (thumbnailFile) {
+      if (article.thumbnailUrl) {
+        await this.cloudinaryService.deleteResourceByUrl(article.thumbnailUrl, 'image')
+      }
+      thumbnailUrlToSet = await this.cloudinaryService.uploadImage(
+        thumbnailFile,
+        envConfig.CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER,
+      )
+    } else if (rest.thumbnailUrl !== undefined) {
+      thumbnailUrlToSet = rest.thumbnailUrl
+    }
+
     const updated = await this.articleRepository.updateArticle(
       articleId,
       {
@@ -243,7 +270,7 @@ export class ArticleService {
         ...(rest.title && { title: rest.title }),
         ...(rest.content && { content: rest.content }),
         ...(rest.contentVi !== undefined && { contentVi: rest.contentVi }),
-        ...(rest.thumbnailUrl !== undefined && { thumbnailUrl: rest.thumbnailUrl }),
+        ...(thumbnailUrlToSet !== undefined && { thumbnailUrl: thumbnailUrlToSet }),
         ...(rest.sourceUrl !== undefined && { sourceUrl: rest.sourceUrl }),
         ...(rest.audioUrl !== undefined && { audioUrl: rest.audioUrl }),
         ...(rest.voiceType !== undefined && { voiceType: rest.voiceType }),
@@ -263,9 +290,105 @@ export class ArticleService {
     return { message: 'Xóa bài báo thành công' }
   }
 
-  async createArticle(body: CreateArticleBodyType, createdBy: string) {
-    const articleId = await this.articleRepository.createArticle({ body, createdBy })
-    return { articleId, message: 'Tạo bài báo thành công' }
+  async createArticle(body: CreateArticleBodyType, createdBy: string, thumbnailFile?: UploadedFileData) {
+    const content = this.normalizeArticleContent(body.content)
+    const voiceType = body.voiceType ?? VoiceType.UK_FEMALE
+    const generatedAudio = await this.generateArticleAudio(content, voiceType)
+    const dateStamp = this.formatDateStamp(new Date())
+    const articleSlug = this.slugify(body.title)
+
+    const audioUrl = await this.cloudinaryService.uploadAudio(
+      {
+        buffer: generatedAudio,
+        mimetype: 'audio/mpeg',
+        originalname: `article_${dateStamp}_${articleSlug}.mp3`,
+        size: generatedAudio.byteLength,
+      },
+      envConfig.CLOUDINARY_ARTICLE_AUDIO_FOLDER,
+    )
+
+    let thumbnailUrl: string | undefined = undefined
+    if (thumbnailFile) {
+      thumbnailUrl = await this.cloudinaryService.uploadImage(
+        thumbnailFile,
+        envConfig.CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER,
+      )
+    }
+
+    const articleId = await this.articleRepository.createArticle({
+      body: {
+        ...body,
+        content,
+        voiceType,
+        audioUrl,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      },
+      createdBy,
+    })
+    return { articleId, audioUrl, message: 'Tạo bài báo thành công' }
+  }
+
+  private normalizeArticleContent(content: string) {
+    return content.replace(/\r\n/g, '\n').trim()
+  }
+
+  private formatDateStamp(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}${month}${day}`
+  }
+
+  private slugify(value: string) {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-')
+  }
+
+  private async generateArticleAudio(content: string, voiceType: VoiceTypeType): Promise<Buffer> {
+    const response = await fetch(`${envConfig.FASTAPI_SERVER_URL}/tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        text: content,
+        voice_type: voiceType,
+      }).toString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new BadGatewayException([
+        {
+          message: 'Error.GenerateArticleAudioFailed',
+          detail: errorText || `FastAPI TTS returned ${response.status}`,
+        },
+      ])
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    if (arrayBuffer.byteLength === 0) {
+      throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
+    }
+
+    return Buffer.from(arrayBuffer)
+  }
+
+  async createArticleVocabularies(
+    articleId: string,
+    body: CreateArticleVocabulariesBodyType,
+    createdBy: string,
+  ): Promise<{ message: string }> {
+    const article = await this.articleRepository.findArticleById(articleId)
+    if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
+
+    await this.articleRepository.createArticleVocabularies(articleId, body.vocabularies, createdBy)
+    return { message: `Tạo thành công ${body.vocabularies.length} từ vựng` }
   }
 
   async createQuiz(articleId: string, body: CreateQuizBodyType) {
@@ -278,7 +401,17 @@ export class ArticleService {
   async updateQuizQuestion(questionId: string, body: UpdateQuizQuestionType) {
     const question = await this.articleRepository.findQuizQuestionById(questionId)
     if (!question) throw new NotFoundException([{ message: 'Error.QuizQuestionNotFound' }])
-    const updated = await this.articleRepository.updateQuizQuestion(questionId, body as any)
+    const updateData: Parameters<ArticleRepository['updateQuizQuestion']>[1] = {}
+
+    if (body.questionText !== undefined) updateData.questionText = body.questionText
+    if (body.questionTextVi !== undefined) updateData.questionTextVi = body.questionTextVi
+    if (body.types !== undefined) updateData.types = body.types
+    if (body.evidenceText !== undefined) updateData.evidenceText = body.evidenceText
+    if (body.evidenceTextVi !== undefined) updateData.evidenceTextVi = body.evidenceTextVi
+    if (body.explanation !== undefined) updateData.explanation = body.explanation
+    if (body.orderIndex !== undefined) updateData.orderIndex = body.orderIndex
+
+    const updated = await this.articleRepository.updateQuizQuestion(questionId, updateData)
     return { message: 'Cập nhật câu hỏi thành công', question: updated }
   }
 

@@ -229,9 +229,30 @@ export const UpdateArticleBodySchema = z
     sourceUrl: z.string().url().optional(),
     audioUrl: z.string().url().optional(),
     voiceType: z.enum([VoiceType.UK_FEMALE, VoiceType.UK_MALE, VoiceType.US_FEMALE, VoiceType.US_MALE]).optional(),
-    readingTimeMin: z.number().int().positive().optional(),
+    readingTimeMin: z.preprocess((value) => {
+      if (value === '' || value === undefined || value === null) return undefined
+      return value
+    }, z.coerce.number().int().positive().optional()),
     status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]).optional(),
-    topicIds: z.array(z.string().uuid()).min(1).optional(),
+    topicIds: z.preprocess((value: unknown) => {
+      if (Array.isArray(value)) return value as unknown
+      if (typeof value !== 'string') return value
+
+      const trimmed = value.trim()
+      if (!trimmed) return undefined as unknown
+
+      try {
+        const parsed: unknown = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) return parsed as unknown
+      } catch {
+        // Fall back to comma-separated parsing.
+      }
+
+      return trimmed
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    }, z.array(z.string().uuid()).min(1).optional()),
   })
   .strict()
 
@@ -278,6 +299,26 @@ export const CreateQuizQuestionSchema = z
     }
   })
 
+export const CreateArticleVocabularySchema = z
+  .object({
+    word: z.string().min(1),
+    phoneticUk: z.string().optional(),
+    phoneticUs: z.string().optional(),
+    partOfSpeech: z.string().optional(),
+    meaningVi: z.string().min(1),
+    meaningEn: z.string().optional(),
+    exampleEn: z.string().optional(),
+    exampleVi: z.string().optional(),
+    imageUrl: z.string().url().optional(),
+    audioUrlUk: z.string().url().optional(),
+    audioUrlUs: z.string().url().optional(),
+    audioExampleUrl: z.string().url().optional(),
+    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    synonymIds: z.array(z.string().uuid()).optional().default([]),
+    antonymIds: z.array(z.string().uuid()).optional().default([]),
+  })
+  .strict()
+
 export const CreateArticleBodySchema = z
   .object({
     level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
@@ -286,43 +327,50 @@ export const CreateArticleBodySchema = z
     contentVi: z.string().optional(),
     thumbnailUrl: z.string().url().optional(),
     sourceUrl: z.string().url().optional(),
-    audioUrl: z.string().url().optional(),
     voiceType: z.enum([VoiceType.UK_FEMALE, VoiceType.UK_MALE, VoiceType.US_FEMALE, VoiceType.US_MALE]).optional(),
-    readingTimeMin: z.number().int().positive().optional(),
+    readingTimeMin: z.preprocess((value) => {
+      if (value === '' || value === undefined || value === null) return undefined
+      return value
+    }, z.coerce.number().int().positive().optional()),
     status: z
       .enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED])
       .optional()
       .default(ArticleStatus.DRAFT),
-    topicIds: z.array(z.string().uuid()).min(1, 'Phải có ít nhất 1 topic'),
-    vocabularies: z
-      .array(
-        z.object({
-          word: z.string().min(1),
-          phoneticUk: z.string().optional(),
-          phoneticUs: z.string().optional(),
-          partOfSpeech: z.string().optional(),
-          meaningVi: z.string().min(1),
-          meaningEn: z.string().optional(),
-          exampleEn: z.string().optional(),
-          exampleVi: z.string().optional(),
-          imageUrl: z.string().url().optional(),
-          audioUrlUk: z.string().url().optional(),
-          audioUrlUs: z.string().url().optional(),
-          audioExampleUrl: z.string().url().optional(),
-          level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
-          synonymIds: z.array(z.string().uuid()).optional().default([]),
-          antonymIds: z.array(z.string().uuid()).optional().default([]),
-        }),
-      )
-      .optional()
-      .default([]),
-    quizQuestions: z.array(CreateQuizQuestionSchema).optional().default([]),
+    topicIds: z.preprocess(
+      (value: unknown) => {
+        if (Array.isArray(value)) return value as unknown
+        if (typeof value !== 'string') return value
+
+        const trimmed = value.trim()
+        if (!trimmed) return [] as unknown
+
+        try {
+          const parsed: unknown = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) return parsed as unknown
+        } catch {
+          // Fall back to comma-separated parsing.
+        }
+
+        return trimmed
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      },
+      z.array(z.string().uuid()).min(1, 'Phải có ít nhất 1 topic'),
+    ),
+  })
+  .strict()
+
+export const CreateArticleVocabulariesBodySchema = z
+  .object({
+    vocabularies: z.array(CreateArticleVocabularySchema).min(1),
   })
   .strict()
 
 export const CreateArticleResSchema = z.object({
   articleId: z.string().uuid(),
   message: z.string(),
+  audioUrl: z.string().url(),
 })
 
 export const CreateQuizBodySchema = z
@@ -361,9 +409,11 @@ export type GetArticlesQueryType = z.infer<typeof GetArticlesQuerySchema>
 export type ArticleProgressBodyType = z.infer<typeof ArticleProgressBodySchema>
 export type UpdateArticleBodyType = z.infer<typeof UpdateArticleBodySchema>
 export type CreateArticleBodyType = z.infer<typeof CreateArticleBodySchema>
+export type CreateArticleVocabulariesBodyType = z.infer<typeof CreateArticleVocabulariesBodySchema>
 export type CreateQuizBodyType = z.infer<typeof CreateQuizBodySchema>
 export type CreateArticleResType = z.infer<typeof CreateArticleResSchema>
 export type CreateQuizQuestionType = z.infer<typeof CreateQuizQuestionSchema>
+export type CreateArticleVocabularyType = z.infer<typeof CreateArticleVocabularySchema>
 export type UpdateQuizQuestionType = z.infer<typeof UpdateQuizQuestionSchema>
 export type StartArticleQuizResType = z.infer<typeof StartArticleQuizResSchema>
 export type SubmitArticleQuizBodyType = z.infer<typeof SubmitArticleQuizBodySchema>

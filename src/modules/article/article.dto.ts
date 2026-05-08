@@ -4,6 +4,7 @@ import {
   ArticleProgressResSchema,
   CreateArticleBodySchema,
   CreateArticleResSchema,
+  CreateArticleVocabulariesBodySchema,
   CreateQuizBodySchema,
   GetArticleContentResSchema,
   GetArticleQuizResSchema,
@@ -42,6 +43,8 @@ export class UpdateArticleBodyDTO extends createZodDto(UpdateArticleBodySchema) 
 
 export class CreateArticleBodyDTO extends createZodDto(CreateArticleBodySchema) {}
 export class CreateArticleResDTO extends createZodDto(CreateArticleResSchema) {}
+
+export class CreateArticleVocabulariesBodyDTO extends createZodDto(CreateArticleVocabulariesBodySchema) {}
 
 export class CreateQuizBodyDTO extends createZodDto(CreateQuizBodySchema) {}
 
