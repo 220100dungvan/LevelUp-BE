@@ -488,6 +488,7 @@ model Article {
   status         ArticleStatus @default(DRAFT)
   publishedAt    DateTime?     @map("published_at")
   audioUrl       String?       @map("audio_url")
+  speechMarks    Json?         @map("speech_marks") @db.Json
   voiceType      VoiceType?    @map("voice_type")
   readingTimeMin Int?          @map("reading_time_min")
   createdAt      DateTime      @default(now()) @map("created_at")
