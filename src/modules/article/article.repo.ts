@@ -15,6 +15,7 @@ import {
   CreateArticleBodyType,
   CreateArticleVocabularyType,
   CreateQuizQuestionType,
+  UpdateQuizOptionType,
 } from '@/modules/article/article.schema'
 import { Injectable } from '@nestjs/common'
 
@@ -191,7 +192,7 @@ export class ArticleRepository {
   }
 
   async createArticle(params: {
-    body: CreateArticleBodyType & { audioUrl?: string }
+    body: CreateArticleBodyType & { audioUrl?: string; speechMarks?: any }
     createdBy: string
   }): Promise<string> {
     const { body, createdBy } = params
@@ -207,6 +208,7 @@ export class ArticleRepository {
           thumbnailUrl: body.thumbnailUrl ?? null,
           sourceUrl: body.sourceUrl ?? null,
           audioUrl: body.audioUrl ?? null,
+          speechMarks: body.speechMarks ?? null,
           voiceType: body.voiceType ?? null,
           readingTimeMin: body.readingTimeMin ?? null,
           status: body.status,
@@ -295,8 +297,31 @@ export class ArticleRepository {
     }
   }
 
-  updateQuizQuestion(questionId: string, data: Prisma.ArticleQuizQuestionUpdateInput): Promise<ArticleQuizQuestion> {
-    return this.prismaService.articleQuizQuestion.update({ where: { id: questionId }, data })
+  async updateQuizQuestion(
+    questionId: string,
+    data: Prisma.ArticleQuizQuestionUpdateInput,
+    options?: UpdateQuizOptionType[],
+  ): Promise<ArticleQuizQuestion> {
+    if (!options) {
+      return this.prismaService.articleQuizQuestion.update({ where: { id: questionId }, data })
+    }
+
+    return this.prismaService.$transaction(async (tx) => {
+      const updated = await tx.articleQuizQuestion.update({ where: { id: questionId }, data })
+
+      await tx.articleQuizOption.deleteMany({ where: { questionId } })
+      await tx.articleQuizOption.createMany({
+        data: options.map((option, index) => ({
+          questionId,
+          text: option.text,
+          textVi: option.textVi ?? null,
+          isCorrect: option.isCorrect,
+          orderIndex: option.orderIndex ?? index,
+        })),
+      })
+
+      return updated
+    })
   }
 
   async deleteQuizQuestion(questionId: string): Promise<void> {
@@ -384,6 +409,54 @@ export class ArticleRepository {
           finishedAt: payload.finishedAt,
         },
       })
+    })
+  }
+
+  async findLatestFinishedQuizAttempt(userId: string, articleId: string) {
+    return this.prismaService.articleQuizAttempt.findFirst({
+      where: {
+        userId,
+        articleId,
+        finishedAt: { not: null },
+      },
+      orderBy: { finishedAt: 'desc' },
+      include: {
+        answerLogs: {
+          orderBy: { id: 'asc' },
+        },
+      },
+    })
+  }
+
+  async findFinishedQuizAttempts(userId: string, articleId: string) {
+    return this.prismaService.articleQuizAttempt.findMany({
+      where: {
+        userId,
+        articleId,
+        finishedAt: { not: null },
+      },
+      orderBy: { finishedAt: 'desc' },
+      include: {
+        answerLogs: {
+          orderBy: { id: 'asc' },
+        },
+      },
+    })
+  }
+
+  async findFinishedQuizAttemptById(attemptId: number, userId: string, articleId: string) {
+    return this.prismaService.articleQuizAttempt.findFirst({
+      where: {
+        id: attemptId,
+        userId,
+        articleId,
+        finishedAt: { not: null },
+      },
+      include: {
+        answerLogs: {
+          orderBy: { id: 'asc' },
+        },
+      },
     })
   }
 }

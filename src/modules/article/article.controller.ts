@@ -1,16 +1,17 @@
-import { UserRole } from '@/common/constants/auth.constant'
+import { UserRole, type UserRoleType } from '@/common/constants/auth.constant'
 import { ActiveUser } from '@/common/decorators/active-user.decorator'
 import { IsPublic } from '@/common/decorators/auth.decorator'
 import { Roles } from '@/common/decorators/roles.decorator'
 import { MessageResDTO } from '@/common/dtos/response.dto'
 import {
-  ArticleDetailResDTO,
   ArticleProgressBodyDTO,
   ArticleProgressResDTO,
   CreateArticleBodyDTO,
   CreateArticleResDTO,
   CreateArticleVocabulariesBodyDTO,
   CreateQuizBodyDTO,
+  GetAllArticleQuizAttemptsResDTO,
+  GetArticleQuizAttemptResDTO,
   GetArticleContentResDTO,
   GetArticleQuizResDTO,
   GetArticlesQueryDTO,
@@ -32,6 +33,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -65,16 +67,8 @@ export class ArticleController {
     return this.articleService.getArticles(query)
   }
 
-  @Get(':articleId')
-  @IsPublic()
-  @ZodResponse({ type: ArticleDetailResDTO })
-  getArticleDetail(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
-    return this.articleService.getArticleDetail(articleId)
-  }
-
   //lấy riêng vocabularies
   @Get(':articleId/vocabularies')
-  @IsPublic()
   @ZodResponse({ type: GetArticleVocabulariesResDTO })
   getArticleVocabularies(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
     return this.articleService.getArticleVocabularies(articleId)
@@ -82,16 +76,35 @@ export class ArticleController {
 
   //lấy riêng quiz
   @Get(':articleId/quiz')
-  @IsPublic()
   @ZodResponse({ type: GetArticleQuizResDTO })
-  getArticleQuiz(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
-    return this.articleService.getArticleQuiz(articleId)
+  getArticleQuiz(
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: UserRoleType,
+  ) {
+    return this.articleService.getArticleQuiz(articleId, userId, role)
+  }
+
+  @Get(':articleId/quiz/attempts/:attemptId')
+  @ZodResponse({ type: GetArticleQuizAttemptResDTO })
+  getQuizAttemptById(
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @Param('attemptId', ParseIntPipe) attemptId: number,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.articleService.findQuizAttemptById(attemptId, userId, articleId)
   }
 
   @Post(':articleId/quiz/start')
   @ZodResponse({ type: StartArticleQuizResDTO })
   startArticleQuiz(@Param('articleId', new ParseUUIDPipe()) articleId: string, @ActiveUser('userId') userId: string) {
     return this.articleService.startArticleQuiz(userId, articleId)
+  }
+
+  @Get(':articleId/quiz/attempts')
+  @ZodResponse({ type: GetAllArticleQuizAttemptsResDTO })
+  getAllQuizAttempts(@Param('articleId', new ParseUUIDPipe()) articleId: string, @ActiveUser('userId') userId: string) {
+    return this.articleService.getAllQuizAttempts(userId, articleId)
   }
 
   @Post(':articleId/quiz/submit')
@@ -144,8 +157,9 @@ export class ArticleController {
     @Param('articleId', new ParseUUIDPipe()) articleId: string,
     @Body() body: CreateArticleVocabulariesBodyDTO,
     @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: UserRoleType,
   ) {
-    return this.articleService.createArticleVocabularies(articleId, body, userId)
+    return this.articleService.createArticleVocabularies(articleId, body, userId, role)
   }
 
   @Patch(':articleId')
@@ -156,22 +170,32 @@ export class ArticleController {
     @UploadedFile(optionalImageFileValidationPipe) thumbnail: UploadedFileData | undefined,
     @Param('articleId', new ParseUUIDPipe()) articleId: string,
     @Body() body: UpdateArticleBodyDTO,
+    @ActiveUser('userId') userId: string,
   ) {
-    return this.articleService.updateArticle(articleId, body, thumbnail)
+    return this.articleService.updateArticle(articleId, body, userId, thumbnail)
   }
 
   @Delete(':articleId')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  deleteArticle(@Param('articleId', new ParseUUIDPipe()) articleId: string) {
-    return this.articleService.adminDeleteArticle(articleId)
+  deleteArticle(
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: UserRoleType,
+  ) {
+    return this.articleService.adminDeleteArticle(articleId, userId, role)
   }
 
   @Post(':articleId/quiz')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  createQuiz(@Param('articleId', new ParseUUIDPipe()) articleId: string, @Body() body: CreateQuizBodyDTO) {
-    return this.articleService.createQuiz(articleId, body)
+  createQuiz(
+    @Param('articleId', new ParseUUIDPipe()) articleId: string,
+    @Body() body: CreateQuizBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: UserRoleType,
+  ) {
+    return this.articleService.createQuiz(articleId, body, userId, role)
   }
 
   @Patch('quiz/:questionId')
@@ -180,13 +204,20 @@ export class ArticleController {
   updateQuizQuestion(
     @Param('questionId', new ParseUUIDPipe()) questionId: string,
     @Body() body: UpdateQuizQuestionBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: UserRoleType,
   ) {
-    return this.articleService.updateQuizQuestion(questionId, body)
+    return this.articleService.updateQuizQuestion(questionId, body, userId, role)
   }
 
   @Delete('quiz/:questionId')
+  @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @ZodResponse({ type: MessageResDTO })
-  deleteQuizQuestion(@Param('questionId', new ParseUUIDPipe()) questionId: string) {
-    return this.articleService.deleteQuizQuestion(questionId)
+  deleteQuizQuestion(
+    @Param('questionId', new ParseUUIDPipe()) questionId: string,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: UserRoleType,
+  ) {
+    return this.articleService.deleteQuizQuestion(questionId, userId, role)
   }
 }

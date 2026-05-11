@@ -1,11 +1,12 @@
 import {
-  ArticleDetailResSchema,
   ArticleProgressBodySchema,
   ArticleProgressResSchema,
   CreateArticleBodySchema,
   CreateArticleResSchema,
   CreateArticleVocabulariesBodySchema,
   CreateQuizBodySchema,
+  GetAllArticleQuizAttemptsResSchema,
+  GetArticleQuizAttemptResSchema,
   GetArticleContentResSchema,
   GetArticleQuizResSchema,
   GetArticlesQuerySchema,
@@ -25,10 +26,10 @@ export class GetArticleTopicsResDTO extends createZodDto(GetArticleTopicsResSche
 export class GetArticlesResDTO extends createZodDto(GetArticlesResSchema) {}
 export class GetArticlesQueryDTO extends createZodDto(GetArticlesQuerySchema) {}
 
-export class ArticleDetailResDTO extends createZodDto(ArticleDetailResSchema) {}
-
 export class GetArticleVocabulariesResDTO extends createZodDto(GetArticleVocabulariesResSchema) {}
 export class GetArticleQuizResDTO extends createZodDto(GetArticleQuizResSchema) {}
+export class GetArticleQuizAttemptResDTO extends createZodDto(GetArticleQuizAttemptResSchema) {}
+export class GetAllArticleQuizAttemptsResDTO extends createZodDto(GetAllArticleQuizAttemptsResSchema) {}
 
 export class StartArticleQuizResDTO extends createZodDto(StartArticleQuizResSchema) {}
 export class SubmitArticleQuizBodyDTO extends createZodDto(SubmitArticleQuizBodySchema) {}
