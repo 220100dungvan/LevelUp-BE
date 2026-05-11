@@ -426,7 +426,7 @@ ${JSON.stringify(inputItems)}`,
       ])
     }
 
-    const thumbnailUrl = await this.cloudinaryService.uploadImage(thumbnail)
+    const thumbnailUrl = await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_VIDEO_TOPIC_FOLDER)
     return this.videoRepository.createTopic(body, thumbnailUrl)
   }
 
@@ -434,7 +434,9 @@ ${JSON.stringify(inputItems)}`,
     const topic = await this.videoRepository.findTopicById(topicId)
     if (!topic) throw new NotFoundException('Error.VideoTopicNotFound')
 
-    const thumbnailUrl = thumbnail ? await this.cloudinaryService.uploadImage(thumbnail) : undefined
+    const thumbnailUrl = thumbnail
+      ? await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_VIDEO_TOPIC_FOLDER)
+      : undefined
     return this.videoRepository.updateTopic(topicId, body, thumbnailUrl)
   }
 

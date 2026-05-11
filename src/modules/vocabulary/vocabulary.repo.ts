@@ -209,14 +209,16 @@ export class VocabularyRepository {
     return this.prismaService.vocabulary.create({
       data: {
         word: payload.word,
-        phonetic: payload.phonetic,
+        phoneticUk: payload.phoneticUk,
+        phoneticUs: payload.phoneticUs,
         partOfSpeech: payload.partOfSpeech,
         meaningVi: payload.meaningVi,
         meaningEn: payload.meaningEn,
         exampleEn: payload.exampleEn,
         exampleVi: payload.exampleVi,
         imageUrl: payload.imageUrl,
-        audioUrl: payload.audioUrl,
+        audioUrlUk: payload.audioUrlUk,
+        audioUrlUs: payload.audioUrlUs,
         audioExampleUrl: payload.audioExampleUrl,
         level: payload.level,
         createdBy: payload.createdBy,

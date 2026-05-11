@@ -30,6 +30,26 @@ export class CloudinaryService {
     }
   }
 
+  async deleteResourceByUrl(url: string, resourceType: 'image' | 'video' | 'auto' = 'image') {
+    try {
+      // Example Cloudinary URL structure:
+      // https://res.cloudinary.com/<cloud_name>/<asset_type>/upload/v<version>/<folder>/<public_id>.<ext>
+      const uploadIndex = url.indexOf('/upload/')
+      if (uploadIndex === -1) return
+
+      let publicPath = url.substring(uploadIndex + '/upload/'.length)
+      // Remove version prefix if present: v123456789/
+      publicPath = publicPath.replace(/^v\d+\//, '')
+      // Remove file extension
+      publicPath = publicPath.replace(/\.[a-zA-Z0-9]+$/, '')
+
+      await cloudinary.uploader.destroy(publicPath, { resource_type: resourceType })
+    } catch (error) {
+      console.error('Cloudinary delete failed:', error)
+      // swallow error to avoid failing caller; deletion is best-effort
+    }
+  }
+
   async uploadAudio(file: UploadedFileData, folder = envConfig.CLOUDINARY_SHADOWING_AUDIO_FOLDER) {
     try {
       const base64Data = file.buffer.toString('base64')

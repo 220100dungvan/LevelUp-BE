@@ -73,6 +73,24 @@ enum SessionMode {
   SHADOWING
 }
 
+enum VoiceType {
+  UK_MALE
+  UK_FEMALE
+  US_MALE
+  US_FEMALE
+}
+
+enum QuizQuestionType {
+  MAIN_IDEA
+  DETAIL
+  INFERENCE
+  VOCABULARY
+  REFERENCE
+  PURPOSE_TONE
+  NOT_EXCEPT
+  SUMMARY
+}
+
 model User {
   id          String     @id @default(uuid()) @db.Uuid
   email       String     @unique
@@ -81,7 +99,7 @@ model User {
   phoneNumber String?    @map("phone_number")
   avatarUrl   String?    @map("avatar_url")
   totpSecret  String?    @map("totp_secret")
-  totpEnabled  Boolean @default(false)
+  totpEnabled Boolean    @default(false)
   role        UserRole   @default(LEARNER)
   status      UserStatus @default(ACTIVE)
   createdAt   DateTime   @default(now()) @map("created_at")
@@ -106,6 +124,8 @@ model User {
   classesOwned           Class[]
   classMemberships       ClassMember[]
   listProgress           UserListProgress[]
+  verifiedVocabularies   Vocabulary[]             @relation("VocabVerifiedBy")
+  quizAttempts           ArticleQuizAttempt[]
 
   @@map("users")
 }
@@ -180,11 +200,9 @@ model VerificationCode {
   expiresAt DateTime
   createdAt DateTime             @default(now())
 
+  @@unique([email, type])
   @@index([email, code, type])
   @@index([expiresAt])
-
-  @@unique([email, type])
-
   @@map("verification_codes")
 }
 
@@ -228,27 +246,61 @@ model VocabularyList {
 model Vocabulary {
   id              String    @id @default(uuid()) @db.Uuid
   word            String
-  phonetic        String?
+  phoneticUk      String?   @map("phonetic_uk")
+  phoneticUs      String?   @map("phonetic_us")
   partOfSpeech    String?   @map("part_of_speech")
   meaningVi       String    @map("meaning_vi") @db.Text
   meaningEn       String?   @map("meaning_en") @db.Text
   exampleEn       String?   @map("example_en") @db.Text
   exampleVi       String?   @map("example_vi") @db.Text
   imageUrl        String?   @map("image_url")
-  audioUrl        String?   @map("audio_url")
+  audioUrlUk      String?   @map("audio_url_uk")
+  audioUrlUs      String?   @map("audio_url_us")
   audioExampleUrl String?   @map("audio_example_url")
   level           Level?
   createdBy       String    @map("created_by") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at")
   deletedAt       DateTime? @map("deleted_at")
 
+  isVerified Boolean   @default(false) @map("is_verified")
+  verifiedBy String?   @map("verified_by") @db.Uuid
+  verifiedAt DateTime? @map("verified_at")
+
   creator      User                     @relation("VocabCreatedBy", fields: [createdBy], references: [id])
   listItems    VocabularyListItem[]
   userProgress UserVocabularyProgress[]
   mediaLinks   MediaVocabulary[]
+  verifier     User?                    @relation("VocabVerifiedBy", fields: [verifiedBy], references: [id])
+  hasSynonyms  VocabularySynonym[]      @relation("VocabularyToSynonym")
+  synonymOf    VocabularySynonym[]      @relation("SynonymToVocabulary")
+
+  hasAntonyms VocabularyAntonym[] @relation("VocabularyToAntonym")
+  antonymOf   VocabularyAntonym[] @relation("AntonymToVocabulary")
 
   @@unique([word, partOfSpeech])
   @@map("vocabularies")
+}
+
+model VocabularySynonym {
+  vocabularyId String @map("vocabulary_id") @db.Uuid
+  synonymId    String @map("synonym_id") @db.Uuid
+
+  vocabulary Vocabulary @relation("VocabularyToSynonym", fields: [vocabularyId], references: [id], onDelete: Cascade)
+  synonym    Vocabulary @relation("SynonymToVocabulary", fields: [synonymId], references: [id], onDelete: Cascade)
+
+  @@id([vocabularyId, synonymId])
+  @@map("vocabulary_synonyms")
+}
+
+model VocabularyAntonym {
+  vocabularyId String @map("vocabulary_id") @db.Uuid
+  antonymId    String @map("antonym_id") @db.Uuid
+
+  vocabulary Vocabulary @relation("VocabularyToAntonym", fields: [vocabularyId], references: [id], onDelete: Cascade)
+  antonym    Vocabulary @relation("AntonymToVocabulary", fields: [antonymId], references: [id], onDelete: Cascade)
+
+  @@id([vocabularyId, antonymId])
+  @@map("vocabulary_antonyms")
 }
 
 model VocabularyListItem {
@@ -302,18 +354,19 @@ model UserVocabularyProgress {
 }
 
 model VideoTopic {
-  id String @id @default(uuid()) @db.Uuid
-  name String @unique
-  description String? @db.Text
-  thumbnailUrl String? @map("thumbnail_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @unique
+  description  String?   @db.Text
+  thumbnailUrl String?   @map("thumbnail_url")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
-  videoMappings VideoTopicMapping[] 
+  videoMappings VideoTopicMapping[]
 
   @@map("video_topics")
 }
+
 model Video {
   id           String    @id @default(uuid()) @db.Uuid
   level        Level?
@@ -324,7 +377,7 @@ model Video {
   createdAt    DateTime  @default(now()) @map("created_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  videoMappings VideoTopicMapping[] 
+  videoMappings    VideoTopicMapping[]
   sentences        VideoSentence[]
   learningSessions UserLearningSession[]
 
@@ -332,8 +385,8 @@ model Video {
 }
 
 model VideoTopicMapping {
-  videoId  String   @map("video_id") @db.Uuid
-  topicId  String   @map("topic_id") @db.Uuid
+  videoId String @map("video_id") @db.Uuid
+  topicId String @map("topic_id") @db.Uuid
 
   video      Video      @relation(fields: [videoId], references: [id])
   videoTopic VideoTopic @relation(fields: [topicId], references: [id])
@@ -411,13 +464,13 @@ model UserShadowingResult {
 }
 
 model ArticleTopic {
-  id String @id @default(uuid()) @db.Uuid
-  name String @unique
-  description String? @db.Text
-  thumbnailUrl String? @map("thumbnail_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @unique
+  description  String?   @db.Text
+  thumbnailUrl String?   @map("thumbnail_url")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
   articleMappings ArticleTopicMapping[]
 
@@ -429,20 +482,93 @@ model Article {
   level          Level
   title          String
   content        String        @db.Text
+  contentVi      String?       @map("content_vi") @db.Text
+  thumbnailUrl   String?       @map("thumbnail_url")
+  sourceUrl      String?       @map("source_url")
   status         ArticleStatus @default(DRAFT)
   publishedAt    DateTime?     @map("published_at")
   audioUrl       String?       @map("audio_url")
+  speechMarks    Json?         @map("speech_marks") @db.Json
+  voiceType      VoiceType?    @map("voice_type")
   readingTimeMin Int?          @map("reading_time_min")
   createdAt      DateTime      @default(now()) @map("created_at")
   createdBy      String        @map("created_by") @db.Uuid
   deletedAt      DateTime?     @map("deleted_at")
 
-  topicMappings ArticleTopicMapping[] 
-  creator  User                  @relation(fields: [createdBy], references: [id])
-  progress UserArticleProgress[]
+  topicMappings ArticleTopicMapping[]
+  creator       User                  @relation(fields: [createdBy], references: [id])
+  progress      UserArticleProgress[]
+  quizQuestions ArticleQuizQuestion[]
+  quizAttempts  ArticleQuizAttempt[]
 
-  @@unique([ level, id])
+  @@unique([level, id])
   @@map("articles")
+}
+
+model ArticleQuizQuestion {
+  id             String             @id @default(uuid()) @db.Uuid
+  articleId      String             @map("article_id") @db.Uuid
+  questionText   String             @map("question_text") @db.Text
+  questionTextVi String?            @map("question_text_vi") @db.Text
+  types          QuizQuestionType[]
+  evidenceText   String?            @map("evidence_text") @db.Text
+  evidenceTextVi String?            @map("evidence_text_vi") @db.Text
+  explanation    String?            @db.Text
+  orderIndex     Int                @default(0) @map("order_index")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  article    Article                @relation(fields: [articleId], references: [id])
+  options    ArticleQuizOption[]
+  answerLogs ArticleQuizAnswerLog[]
+
+  @@index([articleId, orderIndex])
+  @@map("article_quiz_questions")
+}
+
+model ArticleQuizOption {
+  id         String  @id @default(uuid()) @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  text       String  @db.Text
+  textVi     String? @map("text_vi") @db.Text
+  isCorrect  Boolean @default(false) @map("is_correct")
+  orderIndex Int     @default(0) @map("order_index")
+
+  question   ArticleQuizQuestion    @relation(fields: [questionId], references: [id])
+  answerLogs ArticleQuizAnswerLog[]
+
+  @@map("article_quiz_options")
+}
+
+model ArticleQuizAttempt {
+  id             Int       @id @default(autoincrement())
+  userId         String    @map("user_id") @db.Uuid
+  articleId      String    @map("article_id") @db.Uuid
+  totalQuestions Int       @map("total_questions")
+  correctCount   Int       @default(0) @map("correct_count")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+
+  user       User                   @relation(fields: [userId], references: [id])
+  article    Article                @relation(fields: [articleId], references: [id])
+  answerLogs ArticleQuizAnswerLog[]
+
+  @@index([userId, articleId])
+  @@map("article_quiz_attempts")
+}
+
+model ArticleQuizAnswerLog {
+  id               Int     @id @default(autoincrement())
+  attemptId        Int     @map("attempt_id")
+  questionId       String  @map("question_id") @db.Uuid
+  selectedOptionId String? @map("selected_option_id") @db.Uuid
+  isCorrect        Boolean @map("is_correct")
+
+  attempt        ArticleQuizAttempt  @relation(fields: [attemptId], references: [id])
+  question       ArticleQuizQuestion @relation(fields: [questionId], references: [id])
+  selectedOption ArticleQuizOption?  @relation(fields: [selectedOptionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@map("article_quiz_answer_logs")
 }
 
 model ArticleTopicMapping {

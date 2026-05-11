@@ -29,11 +29,14 @@ const configSchema = z.object({
   GROQ_CHAT_API_ENDPOINT: z.string(),
   GROQ_AUDIO_API_ENDPOINT: z.string(),
   GROQ_STT_MODEL: z.string(),
+  FASTAPI_SERVER_URL: z.string(),
   CLOUDINARY_CLOUD_NAME: z.string(),
   CLOUDINARY_API_KEY: z.string(),
   CLOUDINARY_API_SECRET: z.string(),
   CLOUDINARY_VIDEO_TOPIC_FOLDER: z.string(),
   CLOUDINARY_SHADOWING_AUDIO_FOLDER: z.string(),
+  CLOUDINARY_ARTICLE_AUDIO_FOLDER: z.string(),
+  CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER: z.string(),
   LEARNING_TOKEN_SECRET: z.string(),
 })
 
