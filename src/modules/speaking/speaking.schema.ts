@@ -69,7 +69,7 @@ export const ParticipantSchema = z.object({
   fullName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   isOnline: z.boolean(),
-  joinedAt: z.date(),
+  joinedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
 export const SessionDetailSchema = z.object({
@@ -80,8 +80,8 @@ export const SessionDetailSchema = z.object({
   maxMembers: z.number(),
   isPrivate: z.boolean(),
   status: z.enum([SpeakingSessionStatus.WAITING, SpeakingSessionStatus.MATCHED, SpeakingSessionStatus.ENDED]),
-  createdAt: z.date(),
-  endedAt: z.date().nullable(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  endedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()).nullable(),
   topics: z.array(SpeakingTopicSchema),
   participants: z.array(ParticipantSchema),
   currentMemberCount: z.number(),

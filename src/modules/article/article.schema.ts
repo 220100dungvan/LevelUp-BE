@@ -8,8 +8,8 @@ export const ArticleTopicSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   thumbnailUrl: z.string().nullable(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  updatedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
 export const GetArticleTopicsResSchema = z.object({
@@ -25,12 +25,12 @@ export const ArticleSchema = z.object({
   thumbnailUrl: z.string().nullable(),
   sourceUrl: z.string().nullable(),
   status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]),
-  publishedAt: z.date().nullable(),
+  publishedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()).nullable(),
   audioUrl: z.string().nullable(),
   speechMarks: z.unknown().nullable(),
   voiceType: z.enum([VoiceType.UK_MALE, VoiceType.UK_FEMALE, VoiceType.US_MALE, VoiceType.US_FEMALE]).nullable(),
   readingTimeMin: z.number().int().nullable(),
-  createdAt: z.date(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
   topics: z.array(ArticleTopicSchema).optional(),
 })
 
@@ -43,7 +43,7 @@ export const ArticleListItemSchema = z.object({
   status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]),
   voiceType: z.enum([VoiceType.UK_MALE, VoiceType.UK_FEMALE, VoiceType.US_MALE, VoiceType.US_FEMALE]).nullable(),
   readingTimeMin: z.number().int().nullable(),
-  createdAt: z.date(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
   topics: z.array(ArticleTopicSchema),
 })
 
@@ -165,7 +165,7 @@ export const QuizAttemptLastSchema = z.object({
   attemptId: z.number().int(),
   totalQuestions: z.number().int(),
   correctCount: z.number().int(),
-  finishedAt: z.date().nullable(),
+  finishedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()).nullable(),
   answerLogs: z.array(QuizAttemptResultSchema),
 })
 
@@ -184,7 +184,7 @@ export const GetAllArticleQuizAttemptsResSchema = z.object({
 export const StartArticleQuizResSchema = z.object({
   attemptId: z.number().int(),
   quizQuestions: z.array(QuizQuestionAccessibleSchema),
-  startedAt: z.date(),
+  startedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
 export const SubmitArticleQuizAnswerSchema = z
@@ -237,7 +237,7 @@ export const SubmitArticleQuizResSchema = z
     totalQuestions: z.number().int(),
     correctCount: z.number().int(),
     scorePct: z.number().min(0).max(100),
-    finishedAt: z.date(),
+    finishedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
     results: z.array(SubmitArticleQuizAnswerResultSchema),
   })
   .strict()

@@ -8,8 +8,6 @@ import {
   CreateArticleBodyType,
   CreateQuizBodyType,
   CreateArticleVocabulariesBodyType,
-  GetAllArticleQuizAttemptsResType,
-  GetArticleQuizAttemptResType,
   GetArticlesQueryType,
   QuizAttemptResultType,
   SubmitArticleQuizBodyType,
@@ -91,11 +89,7 @@ export class ArticleService {
     }
   }
 
-  async findQuizAttemptById(
-    attemptId: number,
-    userId: string,
-    articleId: string,
-  ): Promise<GetArticleQuizAttemptResType> {
+  async findQuizAttemptById(attemptId: number, userId: string, articleId: string) {
     const article = await this.articleRepository.findArticleById(articleId)
     if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
 
@@ -136,7 +130,7 @@ export class ArticleService {
     }
   }
 
-  async getAllQuizAttempts(userId: string, articleId: string): Promise<GetAllArticleQuizAttemptsResType> {
+  async getAllQuizAttempts(userId: string, articleId: string) {
     const article = await this.articleRepository.findArticleById(articleId)
     if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
 
