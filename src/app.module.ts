@@ -18,6 +18,7 @@ import { VideoSessionModule } from '@/modules/video-session/video-session.module
 import { ShadowingModule } from './modules/shadowing/shadowing.module'
 import { SpeakingModule } from './modules/speaking/speaking.module'
 import { ArticleModule } from './modules/article/article.module'
+import { DictionaryModule } from './modules/dictionary/dictionary.module'
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ArticleModule } from './modules/article/article.module'
     ShadowingModule,
     SpeakingModule,
     ArticleModule,
+    DictionaryModule,
   ],
   controllers: [AppController],
   providers: [

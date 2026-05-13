@@ -1,0 +1,161 @@
+import envConfig from '@/common/utils/config'
+import { DictionaryLookupResType, SlangItemType } from '@/modules/dictionary/dictionary.schema'
+import {
+  DictionaryResponseType,
+  FreeDictionaryResponseType,
+  FreeSense,
+  GiphyResponseType,
+  UrbanDictionaryResponseType,
+} from '@/modules/dictionary/interfaces/dictionary.type'
+import { Injectable } from '@nestjs/common'
+
+@Injectable()
+export class DictionaryService {
+  async lookup(word: string): Promise<DictionaryLookupResType> {
+    const [giphyResponse, slangsResponse, freeDictResponse, DictResponse] = await Promise.allSettled([
+      this.fetchGiphyImages(word),
+      this.fetchSlangs(word),
+      this.fetchFreeDictionary(word),
+      this.fetchDictionary(word),
+    ])
+
+    const free = freeDictResponse.status === 'fulfilled' ? freeDictResponse.value : null
+
+    return {
+      word: free?.word ?? word,
+      phonetics:
+        DictResponse.status === 'fulfilled'
+          ? {
+              phonetic_uk: {
+                text: DictResponse.value.uk.text,
+                audio: DictResponse.value.uk.audio,
+              },
+              phonetic_us: {
+                text: DictResponse.value.us.text,
+                audio: DictResponse.value.us.audio,
+              },
+            }
+          : {
+              phonetic_uk: { text: '', audio: '' },
+              phonetic_us: { text: '', audio: '' },
+            },
+      meanings: free?.meanings ?? [],
+      relatedWords: free?.relatedWords ?? { synonyms: [], antonyms: [] },
+      images: giphyResponse.status === 'fulfilled' ? giphyResponse.value : [],
+      slangs: slangsResponse.status === 'fulfilled' ? slangsResponse.value : [],
+    } as unknown as DictionaryLookupResType
+  }
+
+  private fetchFreeDictionary(word: string): Promise<{
+    word: string
+    meanings: {
+      partOfSpeech: string
+      definitions: { definition: string; example?: string; synonyms: string[]; antonyms: string[] }[]
+    }[]
+    relatedWords: { synonyms: string[]; antonyms: string[] }
+  }> {
+    return fetch(`${envConfig.FREE_DICTIONARY_API_ENDPOINT}/${encodeURIComponent(word)}`)
+      .then((res) => res.json())
+      .then((data: FreeDictionaryResponseType) => {
+        const entries = Array.isArray(data.entries) ? data.entries : []
+
+        const meanings = entries.map((entry) => {
+          const definitions: any[] = []
+
+          const walkSenses = (senses: FreeSense[] = []) => {
+            for (const s of senses) {
+              if (s.definition) {
+                definitions.push({
+                  definition: s.definition,
+                  example: Array.isArray(s.examples) && s.examples.length ? s.examples[0] : undefined,
+                  synonyms: Array.isArray(s.synonyms) ? s.synonyms : [],
+                  antonyms: Array.isArray(s.antonyms) ? s.antonyms : [],
+                })
+              }
+              if (Array.isArray(s.subsenses) && s.subsenses.length) walkSenses(s.subsenses)
+            }
+          }
+
+          if (Array.isArray(entry.senses)) walkSenses(entry.senses)
+
+          return {
+            partOfSpeech: entry.partOfSpeech ?? '',
+            definitions,
+          }
+        })
+
+        const synonymsSet = new Set<string>()
+        const antonymsSet = new Set<string>()
+        for (const m of meanings) {
+          for (const d of m.definitions) {
+            for (const s of d.synonyms || []) synonymsSet.add(s)
+            for (const a of d.antonyms || []) antonymsSet.add(a)
+          }
+        }
+
+        return {
+          word: data.word || word,
+          meanings,
+          relatedWords: { synonyms: Array.from(synonymsSet), antonyms: Array.from(antonymsSet) },
+        }
+      })
+  }
+
+  private fetchDictionary(word: string): Promise<{
+    uk: { text: string; audio?: string }
+    us: { text: string; audio?: string }
+  }> {
+    return fetch(`${envConfig.DICTIONARY_API_ENDPOINT}/${encodeURIComponent(word)}`)
+      .then((res) => res.json())
+      .then((data: DictionaryResponseType) => {
+        const phoneticUK = data[0]?.phonetics.find(
+          (p) => (p.audio && p.audio.includes('uk.mp3')) || (p.audio && p.audio.includes('au.mp3')),
+        ) ||
+          data[1]?.phonetics.find(
+            (p) => (p.audio && p.audio.includes('uk.mp3')) || (p.audio && p.audio.includes('au.mp3')),
+          ) || {
+            text: '',
+            audio: '',
+          }
+        const phoneticUS = data[0]?.phonetics.find((p) => p.audio && p.audio.includes('us.mp3')) || {
+          text: '',
+          audio: '',
+        }
+        return {
+          uk: phoneticUK,
+          us: phoneticUS,
+        }
+      })
+  }
+
+  private fetchGiphyImages(word: string): Promise<
+    {
+      id: string
+      url: string
+      title: string
+    }[]
+  > {
+    return fetch(
+      `${envConfig.GIPHY_API_ENDPOINT}?api_key=${process.env.GIPHY_API_KEY}&q=${encodeURIComponent(word)}&limit=10&rating=g`,
+    )
+      .then((res) => res.json())
+      .then((data: GiphyResponseType) => {
+        return data.data.map((item) => ({
+          id: item.id,
+          title: item.title,
+          url: item.images.fixed_height_still.url,
+        }))
+      })
+  }
+
+  private fetchSlangs(word: string): Promise<SlangItemType[]> {
+    return fetch(`${envConfig.URBAN_DICTIONARY_API_ENDPOINT}?term=${encodeURIComponent(word)}`)
+      .then((res) => res.json())
+      .then((data: UrbanDictionaryResponseType) => {
+        return data.list.map((item) => ({
+          phrase: item.word,
+          example: item.example,
+        }))
+      })
+  }
+}

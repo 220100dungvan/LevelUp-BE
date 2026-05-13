@@ -6,6 +6,7 @@ export const AuthType = {
   Bearer: 'Bearer',
   None: 'None',
   APIKey: 'APIKey',
+  DictionaryAPIKey: 'DictionaryAPIKey',
 } as const
 
 export type AuthTypeEnum = (typeof AuthType)[keyof typeof AuthType]

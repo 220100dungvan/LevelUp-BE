@@ -11,6 +11,7 @@ import { Global, Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 import { SpeechToTextService } from '@/common/services/speech-to-text.service'
+import { DictionaryAPIKeyGuard } from '@/common/guards/dictionary-api-key.guard'
 
 const sharedServices = [
   PrismaService,
@@ -28,6 +29,7 @@ const sharedServices = [
     ...sharedServices,
     APIKeyGuard,
     AccessTokenGuard,
+    DictionaryAPIKeyGuard,
     {
       provide: APP_GUARD,
       useClass: AuthenticationGuard,
