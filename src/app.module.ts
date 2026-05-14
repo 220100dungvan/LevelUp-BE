@@ -21,10 +21,13 @@ import { ArticleModule } from './modules/article/article.module'
 import { DictionaryModule } from './modules/dictionary/dictionary.module'
 import { ThrottlerBehindProxyGuard } from '@/common/guards/throttler-behind-proxy.guard'
 import { ThrottlerModule } from '@nestjs/throttler'
+import { ScheduleModule } from '@nestjs/schedule'
+import { RemoveRefreshTokenService } from '@/cronjobs/remove-refresh-token.cronjob'
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    ScheduleModule.forRoot(),
     CommonModule,
     AuthModule,
     UserModule,
@@ -70,6 +73,7 @@ import { ThrottlerModule } from '@nestjs/throttler'
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,
     },
+    RemoveRefreshTokenService,
   ],
 })
 export class AppModule {}
