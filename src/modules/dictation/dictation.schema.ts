@@ -21,7 +21,7 @@ export const DictationResultItemSchema = z.object({
   correctCount: z.number().int(),
   wrongCount: z.number().int(),
   isRevealed: z.boolean(),
-  createdAt: z.date(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
 export const SubmitDictationResSchema = z.object({

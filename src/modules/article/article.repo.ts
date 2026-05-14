@@ -230,9 +230,10 @@ export class ArticleRepository {
       for (const v of vocabularies) {
         const vocab = await tx.vocabulary.upsert({
           where: {
-            word_partOfSpeech: {
+            word_partOfSpeech_meaningVi: {
               word: v.word.toLowerCase().trim(),
               partOfSpeech: v.partOfSpeech ?? '',
+              meaningVi: v.meaningVi,
             },
           },
           create: {

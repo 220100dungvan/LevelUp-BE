@@ -20,6 +20,7 @@ const configSchema = z.object({
   REFRESH_TOKEN_SECRET: z.string(),
   REFRESH_TOKEN_EXPIRES_IN: z.string(),
   API_KEY_SECRET: z.string(),
+  DICTIONARY_API_KEY_SECRET: z.string(),
   RESEND_API_KEY: z.string(),
   APP_NAME: z.string(),
   OTP_EXPIRES_IN: z.string(),
@@ -38,6 +39,12 @@ const configSchema = z.object({
   CLOUDINARY_ARTICLE_AUDIO_FOLDER: z.string(),
   CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER: z.string(),
   LEARNING_TOKEN_SECRET: z.string(),
+  // Dictionary
+  GIPHY_API_ENDPOINT: z.string(),
+  GIPHY_API_KEY: z.string(),
+  URBAN_DICTIONARY_API_ENDPOINT: z.string(),
+  FREE_DICTIONARY_API_ENDPOINT: z.string(),
+  DICTIONARY_API_ENDPOINT: z.string(),
 })
 
 const configServer = configSchema.safeParse(process.env)

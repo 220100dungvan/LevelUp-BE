@@ -277,7 +277,7 @@ model Vocabulary {
   hasAntonyms VocabularyAntonym[] @relation("VocabularyToAntonym")
   antonymOf   VocabularyAntonym[] @relation("AntonymToVocabulary")
 
-  @@unique([word, partOfSpeech])
+  @@unique([word, partOfSpeech, meaningVi])
   @@map("vocabularies")
 }
 
