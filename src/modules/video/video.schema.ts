@@ -256,3 +256,4 @@ export type UpdateVideoBodyType = z.infer<typeof UpdateVideoBodySchema>
 export type CreateVideoSentenceBodyType = z.infer<typeof CreateVideoSentenceBodySchema>
 export type UpdateVideoSentenceBodyType = z.infer<typeof UpdateVideoSentenceBodySchema>
 export type ProcessYoutubeVideoUrlBodyType = z.infer<typeof ProcessYoutubeVideoUrlBodySchema>
+export type GetVideoTopicsResType = z.infer<typeof GetVideoTopicsResSchema>

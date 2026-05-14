@@ -7,11 +7,20 @@ import {
   GiphyResponseType,
   UrbanDictionaryResponseType,
 } from '@/modules/dictionary/interfaces/dictionary.type'
-import { Injectable } from '@nestjs/common'
-
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Inject, Injectable } from '@nestjs/common'
+import type { Cache } from 'cache-manager'
 @Injectable()
 export class DictionaryService {
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+
   async lookup(word: string): Promise<DictionaryLookupResType> {
+    const normalizedWord = word.toLowerCase().trim()
+    const cacheKey = `dict:${normalizedWord}`
+
+    const cached = await this.cacheManager.get<DictionaryLookupResType>(cacheKey)
+    if (cached) return cached
+
     const [giphyResponse, slangsResponse, freeDictResponse, DictResponse] = await Promise.allSettled([
       this.fetchGiphyImages(word),
       this.fetchSlangs(word),
@@ -21,7 +30,7 @@ export class DictionaryService {
 
     const free = freeDictResponse.status === 'fulfilled' ? freeDictResponse.value : null
 
-    return {
+    const result = {
       word: free?.word ?? word,
       phonetics:
         DictResponse.status === 'fulfilled'
@@ -44,6 +53,10 @@ export class DictionaryService {
       images: giphyResponse.status === 'fulfilled' ? giphyResponse.value : [],
       slangs: slangsResponse.status === 'fulfilled' ? slangsResponse.value : [],
     } as unknown as DictionaryLookupResType
+
+    await this.cacheManager.set(cacheKey, result, 24 * 60 * 60 * 1000)
+
+    return result
   }
 
   private fetchFreeDictionary(word: string): Promise<{
