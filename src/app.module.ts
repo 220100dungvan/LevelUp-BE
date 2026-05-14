@@ -6,7 +6,7 @@ import { CommonModule } from './common/common.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { UserModule } from './modules/user/user.module'
 import { VocabularyModule } from './modules/vocabulary/vocabulary.module'
-import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import CustomZodValidationPipe from '@/common/pipes/custom-zod-validation.pipe'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
 import { HttpExceptionFilter } from '@/common/filters/http-exception.filter'
@@ -19,6 +19,8 @@ import { ShadowingModule } from './modules/shadowing/shadowing.module'
 import { SpeakingModule } from './modules/speaking/speaking.module'
 import { ArticleModule } from './modules/article/article.module'
 import { DictionaryModule } from './modules/dictionary/dictionary.module'
+import { ThrottlerBehindProxyGuard } from '@/common/guards/throttler-behind-proxy.guard'
+import { ThrottlerModule } from '@nestjs/throttler'
 
 @Module({
   imports: [
@@ -35,6 +37,14 @@ import { DictionaryModule } from './modules/dictionary/dictionary.module'
     SpeakingModule,
     ArticleModule,
     DictionaryModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 40,
+        },
+      ],
+    }),
   ],
   controllers: [AppController],
   providers: [
@@ -54,6 +64,11 @@ import { DictionaryModule } from './modules/dictionary/dictionary.module'
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerBehindProxyGuard,
     },
   ],
 })

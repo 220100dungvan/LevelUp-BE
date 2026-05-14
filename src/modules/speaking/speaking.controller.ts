@@ -15,8 +15,10 @@ import {
 import { SpeakingGateway } from '@/modules/speaking/speaking.gateway'
 import { SpeakingService } from '@/modules/speaking/speaking.service'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import { ZodResponse } from 'nestjs-zod'
 
+@SkipThrottle()
 @Controller('speaking')
 export class SpeakingController {
   constructor(

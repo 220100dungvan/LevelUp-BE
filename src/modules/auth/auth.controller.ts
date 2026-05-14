@@ -21,6 +21,7 @@ import { ActiveUser } from '@/common/decorators/active-user.decorator'
 import type { UserRoleType } from '@/common/constants/auth.constant'
 import { MessageResDTO } from '@/common/dtos/response.dto'
 import { EmptyBodyDTO } from '@/common/dtos/request.dto'
+import { Throttle } from '@nestjs/throttler'
 
 @Controller('auth')
 export class AuthController {
@@ -39,6 +40,7 @@ export class AuthController {
     return this.authService.sendOTP(body)
   }
 
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
   @Post('login')
   @IsPublic()
   @ZodResponse({ type: LoginResDTO })
