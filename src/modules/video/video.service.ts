@@ -373,11 +373,22 @@ ${JSON.stringify(inputItems)}`,
   async getVideoTopics() {
     const cacheKey = 'video:topics'
     const cached = await this.cacheManager.get<GetVideoTopicsResType>(cacheKey)
-    if (cached) return cached
+    if (cached) {
+      if (Array.isArray(cached)) return { data: cached }
+      return cached
+    }
 
     const topics = await this.videoRepository.findAllTopics()
-    await this.cacheManager.set(cacheKey, topics, 10 * 60 * 1000)
-    return { data: topics }
+    const result: GetVideoTopicsResType = {
+      data: topics.map((topic) => ({
+        ...topic,
+        createdAt: topic.createdAt ? topic.createdAt.toISOString() : null,
+        updatedAt: topic.updatedAt ? topic.updatedAt.toISOString() : null,
+        deletedAt: topic.deletedAt ? topic.deletedAt.toISOString() : null,
+      })),
+    }
+    await this.cacheManager.set(cacheKey, result, 10 * 60 * 1000)
+    return result
   }
 
   getVideos(query: GetVideosQueryType, userId?: string) {
