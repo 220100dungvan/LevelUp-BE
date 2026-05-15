@@ -23,7 +23,8 @@ import { ThrottlerBehindProxyGuard } from '@/common/guards/throttler-behind-prox
 import { ThrottlerModule } from '@nestjs/throttler'
 import { ScheduleModule } from '@nestjs/schedule'
 import { RemoveRefreshTokenService } from '@/cronjobs/remove-refresh-token.cronjob'
-import { RedisModule } from '@/common/redis/redis.module'
+import { BullModule } from '@nestjs/bullmq'
+import envConfig from '@/common/utils/config'
 
 @Module({
   imports: [
@@ -49,7 +50,18 @@ import { RedisModule } from '@/common/redis/redis.module'
         },
       ],
     }),
-    RedisModule,
+    BullModule.forRootAsync({
+      useFactory: () => ({
+        connection: {
+          host: envConfig.REDIS_HOST,
+          port: Number(envConfig.REDIS_PORT),
+        },
+        defaultJobOptions: {
+          removeOnComplete: 50,
+          removeOnFail: 100,
+        },
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [

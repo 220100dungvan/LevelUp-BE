@@ -1,23 +1,22 @@
 import { Injectable } from '@nestjs/common'
-import { Resend } from 'resend'
-import * as React from 'react'
-import envConfig from '@/common/utils/config'
-import OTPEmail from '@/common/emails/templates/otp'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
+import { EMAIL_QUEUE, EmailJob, SendOTPJobPayload } from '@/common/emails/email.job'
 
 @Injectable()
 export class EmailService {
-  private resend: Resend
-  constructor() {
-    this.resend = new Resend(envConfig.RESEND_API_KEY)
-  }
+  constructor(@InjectQueue(EMAIL_QUEUE) private readonly emailQueue: Queue) {}
 
-  sendOTP(payload: { email: string; code: string }) {
-    const subject = 'Mã OTP'
-    return this.resend.emails.send({
-      from: 'LevelUp <onboarding@miustore.io.vn>',
-      to: [payload.email],
-      subject,
-      react: <OTPEmail otpCode={payload.code} title={subject} />,
+  async sendOTP(payload: SendOTPJobPayload) {
+    await this.emailQueue.add(EmailJob.SEND_OTP, payload, {
+      attempts: 3, // retry tối đa 3 lần nếu thất bại
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+      removeOnComplete: 50,
+      removeOnFail: 100,
+      priority: 1,
     })
   }
 }

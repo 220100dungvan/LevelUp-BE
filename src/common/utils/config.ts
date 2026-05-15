@@ -23,6 +23,7 @@ const configSchema = z.object({
   DICTIONARY_API_KEY_SECRET: z.string(),
   RESEND_API_KEY: z.string(),
   APP_NAME: z.string(),
+  EMAIL_FROM: z.string(),
   // docker
   POSTGRES_CONTAINER_NAME: z.string(),
   POSTGRES_USER: z.string(),
