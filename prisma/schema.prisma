@@ -690,7 +690,7 @@ model ClassMember {
   role     ClassRole @default(STUDENT)
   joinedAt DateTime  @default(now()) @map("joined_at")
 
-  class Class @relation(fields: [classId], references: [id])
+  classRoom Class @relation(fields: [classId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
 
   @@unique([classId, userId])

@@ -24,6 +24,7 @@ import { ThrottlerModule } from '@nestjs/throttler'
 import { ScheduleModule } from '@nestjs/schedule'
 import { RemoveRefreshTokenService } from '@/cronjobs/remove-refresh-token.cronjob'
 import { BullModule } from '@nestjs/bullmq'
+import { ClassModule } from './modules/class/class.module'
 import envConfig from '@/common/utils/config'
 
 @Module({
@@ -62,6 +63,7 @@ import envConfig from '@/common/utils/config'
         },
       }),
     }),
+    ClassModule,
   ],
   controllers: [AppController],
   providers: [
