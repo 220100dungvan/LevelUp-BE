@@ -101,13 +101,11 @@ export class ArticleService {
     if (!attempt) throw new NotFoundException([{ message: 'Error.QuizAttemptNotFound' }])
 
     return {
-      data: {
-        attemptId: attempt.id,
-        totalQuestions: attempt.totalQuestions,
-        correctCount: attempt.correctCount,
-        finishedAt: attempt.finishedAt,
-        answerLogs: this.transformAnswerLogs(attempt.answerLogs, quizQuestions),
-      },
+      attemptId: attempt.id,
+      totalQuestions: attempt.totalQuestions,
+      correctCount: attempt.correctCount,
+      finishedAt: attempt.finishedAt,
+      answerLogs: this.transformAnswerLogs(attempt.answerLogs, quizQuestions),
     }
   }
 
@@ -134,10 +132,7 @@ export class ArticleService {
     const article = await this.articleRepository.findArticleById(articleId)
     if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
 
-    const [quizQuestions, attempts] = await Promise.all([
-      this.articleRepository.findQuizByArticleId(articleId),
-      this.articleRepository.findFinishedQuizAttempts(userId, articleId),
-    ])
+    const attempts = await this.articleRepository.findFinishedQuizAttempts(userId, articleId)
 
     return {
       data: attempts.map((attempt) => ({
@@ -145,7 +140,6 @@ export class ArticleService {
         totalQuestions: attempt.totalQuestions,
         correctCount: attempt.correctCount,
         finishedAt: attempt.finishedAt,
-        answerLogs: this.transformAnswerLogs(attempt.answerLogs, quizQuestions),
       })),
     }
   }
@@ -299,6 +293,7 @@ export class ArticleService {
         return {
           question: {
             questionId: question.id,
+            questionText: question.questionText,
             questionTextVi: question.questionTextVi,
             evidenceText: question.evidenceText,
             evidenceTextVi: question.evidenceTextVi,
