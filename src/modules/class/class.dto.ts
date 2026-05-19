@@ -12,14 +12,14 @@ import {
   GetClassStatisticsResSchema,
   GetClassVocabListsResSchema,
   GetMemberProgressResSchema,
-  GetMyClassesResSchema,
+  GetOverviewMyClassesResSchema,
   TransferMemberBodySchema,
   UpdateClassBodySchema,
   UpdateClassResSchema,
 } from '@/modules/class/class.schema'
 import { createZodDto } from 'nestjs-zod'
 
-export class GetMyClassesResDTO extends createZodDto(GetMyClassesResSchema) {}
+export class GetOverviewMyClassesResDTO extends createZodDto(GetOverviewMyClassesResSchema) {}
 export class ClassOverviewResDTO extends createZodDto(ClassOverviewSchema) {}
 export class ClassDetailResDTO extends createZodDto(ClassDetailSchema) {}
 export class CreateClassResDTO extends createZodDto(CreateClassResSchema) {}

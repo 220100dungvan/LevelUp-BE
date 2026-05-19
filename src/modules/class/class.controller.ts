@@ -17,7 +17,7 @@ import {
   GetClassStatisticsResDTO,
   GetClassVocabListsResDTO,
   GetMemberProgressResDTO,
-  GetMyClassesResDTO,
+  GetOverviewMyClassesResDTO,
   TransferMemberBodyDTO,
   UpdateClassBodyDTO,
   UpdateClassResDTO,
@@ -26,14 +26,14 @@ import { ClassService } from '@/modules/class/class.service'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common'
 import { ZodResponse } from 'nestjs-zod'
 
-@Controller('class')
+@Controller('classes')
 export class ClassController {
   constructor(private readonly classService: ClassService) {}
 
   @Get('me')
-  @ZodResponse({ type: GetMyClassesResDTO })
-  getMyClasses(@ActiveUser('userId') userId: string, @ActiveUser('role') role: UserRoleType) {
-    return this.classService.getMyClasses(userId, role)
+  @ZodResponse({ type: GetOverviewMyClassesResDTO })
+  getOverviewMyClasses(@ActiveUser('userId') userId: string, @ActiveUser('role') role: UserRoleType) {
+    return this.classService.getOverviewtMyClasses(userId, role)
   }
 
   @Get('join/:inviteCode')
@@ -79,13 +79,6 @@ export class ClassController {
     @ActiveUser('role') role: UserRoleType,
   ) {
     return this.classService.deleteClass(classId, userId, role)
-  }
-
-  @Post(':classId/invite-code/regenerate')
-  @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  regenerateInviteCode(@Param('classId') classId: string, @ActiveUser('userId') userId: string) {
-    return this.classService.regenerateInviteCode(classId, userId)
   }
 
   @Get(':classId')

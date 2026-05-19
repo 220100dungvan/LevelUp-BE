@@ -375,4 +375,14 @@ export class ClassRepository {
 
     return { assignments, userProgresses }
   }
+
+  async countVocabularyListsByClassIds(classIds: string[]) {
+    if (classIds.length === 0) return 0
+
+    const result = await this.prismaService.classVocabularyList.count({
+      where: { classId: { in: classIds } },
+    })
+
+    return result
+  }
 }

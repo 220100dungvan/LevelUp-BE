@@ -15,10 +15,12 @@ import { randomBytes } from 'crypto'
 export class ClassService {
   constructor(private readonly classRepository: ClassRepository) {}
 
-  async getMyClasses(userId: string, role: UserRoleType) {
+  async getOverviewtMyClasses(userId: string, role: UserRoleType) {
+    let classes: any[] = []
+
     if (role === UserRole.TEACHER || role === UserRole.ADMIN) {
-      const classes = await this.classRepository.findClassesByTeacher(userId)
-      return classes.map((cls) => {
+      const teacherClasses = await this.classRepository.findClassesByTeacher(userId)
+      classes = teacherClasses.map((cls) => {
         return {
           id: cls.id,
           name: cls.name,
@@ -26,24 +28,37 @@ export class ClassService {
           inviteCode: cls.inviteCode,
           teacherId: cls.teacherId,
           teacher: cls.teacher,
+          imageUrl: cls.imageUrl || null,
           totalMembers: cls._count?.members ?? 0,
           createdAt: cls.createdAt,
         }
       })
+    } else {
+      const memberships = await this.classRepository.findClassesByLearner(userId)
+
+      if (memberships.length === 0) {
+        return { classes: [], totalVocabularyLists: 0 }
+      }
+
+      classes = memberships.map(({ classRoom: cls }) => ({
+        id: cls.id,
+        name: cls.name,
+        description: cls.description,
+        inviteCode: cls.inviteCode,
+        imageUrl: cls.imageUrl || null,
+        teacher: cls.teacher,
+        totalMembers: cls._count?.members ?? 0,
+        createdAt: cls.createdAt,
+      }))
     }
 
-    const memberships = await this.classRepository.findClassesByLearner(userId)
+    const classIds = classes.map((cls) => cls.id)
+    const totalVocabularyLists = await this.classRepository.countVocabularyListsByClassIds(classIds)
 
-    if (memberships.length === 0) return []
-
-    return memberships.map(({ classRoom: cls }) => ({
-      id: cls.id,
-      name: cls.name,
-      description: cls.description,
-      teacher: cls.teacher,
-      totalMembers: cls._count?.members ?? 0,
-      createdAt: cls.createdAt,
-    }))
+    return {
+      classes,
+      totalVocabularyLists,
+    }
   }
 
   async getClassOverviewByInviteCode(inviteCode: string, userId?: string) {
@@ -83,6 +98,7 @@ export class ClassService {
     return {
       id: cls.id,
       name: cls.name,
+      imageUrl: cls.imageUrl,
       description: cls.description,
       inviteCode: cls.inviteCode,
       teacherId: cls.teacherId,
@@ -97,6 +113,7 @@ export class ClassService {
       id: updatedClass.id,
       name: updatedClass.name,
       description: updatedClass.description,
+      imageUrl: updatedClass.imageUrl,
       inviteCode: updatedClass.inviteCode,
       teacherId: updatedClass.teacherId,
       createdAt: updatedClass.createdAt,
@@ -124,6 +141,7 @@ export class ClassService {
       id: cls.id,
       name: cls.name,
       description: cls.description,
+      imageUrl: cls.imageUrl || '',
       inviteCode: cls.inviteCode,
       teacherId: cls.teacherId,
       teacher: cls.teacher,
@@ -149,13 +167,6 @@ export class ClassService {
         }
       }),
     }
-  }
-
-  async regenerateInviteCode(classId: string, userId: string) {
-    await this.verifyTeacherOwnsClass(classId, userId)
-    const newCode = this.generateInviteCode()
-    const updated = await this.classRepository.updateClass(classId, { inviteCode: newCode })
-    return { inviteCode: updated.inviteCode }
   }
 
   async addMembersByEmail(classId: string, body: AddMembersBodyType, teacherId: string) {

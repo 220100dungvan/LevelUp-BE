@@ -13,12 +13,17 @@ export const ClassSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string().nullable(),
+  inviteCode: z.string(),
+  imageUrl: z.union([z.string().url(), z.literal(''), z.null()]),
   teacher: UserSummarySchema,
   totalMembers: z.number().int(),
   createdAt: z.preprocess((v) => (v instanceof Date ? v.toISOString() : v), z.string().datetime()),
 })
 
-export const GetMyClassesResSchema = z.array(ClassSchema)
+export const GetOverviewMyClassesResSchema = z.object({
+  classes: z.array(ClassSchema),
+  totalVocabularyLists: z.number().int(),
+})
 
 export const ClassOverviewSchema = z.object({
   id: z.string().uuid(),
@@ -64,7 +69,10 @@ export const ClassDetailSchema = ClassSchema.extend({
   ),
 })
 
-export const CreateClassResSchema = ClassSchema.omit({ teacher: true, totalMembers: true })
+export const CreateClassResSchema = ClassSchema.omit({
+  teacher: true,
+  totalMembers: true,
+})
 
 export const CreateClassBodySchema = z
   .object({
@@ -77,7 +85,7 @@ export const UpdateClassBodySchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
-    imageUrl: z.string().url().optional(),
+    imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
     inviteCode: z.string().optional(),
   })
   .strict()
