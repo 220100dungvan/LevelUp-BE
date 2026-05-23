@@ -3,9 +3,17 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq'
 import * as React from 'react'
 import { Job } from 'bullmq'
 import { Logger } from '@nestjs/common'
-import { EMAIL_QUEUE, EmailJob, SendOTPJobPayload } from '@/common/emails/email.job'
+import {
+  EMAIL_QUEUE,
+  EmailJob,
+  SendOTPJobPayload,
+  StreakAtRiskJobPayload,
+  StreakComebackJobPayload,
+} from '@/common/emails/email.job'
 import { Resend } from 'resend'
 import envConfig from '@/common/utils/config'
+import StreakAtRiskEmail from '@/common/emails/templates/streak-at-risk-email'
+import StreakComebackEmail from '@/common/emails/templates/streak-comeback-email'
 
 @Processor(EMAIL_QUEUE)
 export class EmailConsumer extends WorkerHost {
@@ -18,6 +26,12 @@ export class EmailConsumer extends WorkerHost {
     switch (job.name) {
       case EmailJob.SEND_OTP:
         await this.handleSendOTP(job as Job<SendOTPJobPayload>)
+        break
+      case EmailJob.STREAK_AT_RISK:
+        await this.handleStreakAtRisk(job as Job<StreakAtRiskJobPayload>)
+        break
+      case EmailJob.STREAK_COMEBACK:
+        await this.handleStreakComeback(job as Job<StreakComebackJobPayload>)
         break
       default:
         this.logger.warn(`Unknown job name: ${job.name}`)
@@ -40,6 +54,32 @@ export class EmailConsumer extends WorkerHost {
     }
 
     this.logger.log(`OTP sent successfully to ${email}`)
+  }
+
+  private async handleStreakAtRisk(job: Job<StreakAtRiskJobPayload>) {
+    const { email, name, streak } = job.data
+    const subject = `🔥 Streak ${streak} ngày của bạn sắp bị mất!`
+    const { error } = await this.resend.emails.send({
+      from: `${envConfig.APP_NAME} <${envConfig.EMAIL_FROM}>`,
+      to: email,
+      subject,
+      react: <StreakAtRiskEmail name={name} streak={streak} />,
+    })
+    if (error) throw new Error(`Failed to send streak-at-risk to ${email}: ${error.message}`)
+    this.logger.log(`Streak-at-risk email sent to ${email}`)
+  }
+
+  private async handleStreakComeback(job: Job<StreakComebackJobPayload>) {
+    const { email, name, daysMissed } = job.data
+    const subject = `Đã lâu rồi chúng tôi không thấy bạn 😢`
+    const { error } = await this.resend.emails.send({
+      from: `${envConfig.APP_NAME} <${envConfig.EMAIL_FROM}>`,
+      to: email,
+      subject,
+      react: <StreakComebackEmail name={name} daysMissed={daysMissed} />,
+    })
+    if (error) throw new Error(`Failed to send comeback email to ${email}: ${error.message}`)
+    this.logger.log(`Comeback email sent to ${email}`)
   }
 
   @OnWorkerEvent('completed')

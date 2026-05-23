@@ -27,6 +27,7 @@ import { BullModule } from '@nestjs/bullmq'
 import { ClassModule } from './modules/class/class.module'
 import { DashboardModule } from './modules/dashboard/dashboard.module'
 import envConfig from '@/common/utils/config'
+import { ReminderService } from '@/cronjobs/reminder.cronjob'
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import envConfig from '@/common/utils/config'
       useClass: ThrottlerBehindProxyGuard,
     },
     RemoveRefreshTokenService,
+    ReminderService,
   ],
 })
 export class AppModule {}
