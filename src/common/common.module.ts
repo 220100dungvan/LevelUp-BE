@@ -13,6 +13,7 @@ import { SpeechToTextService } from '@/common/services/speech-to-text.service'
 import { DictionaryAPIKeyGuard } from '@/common/guards/dictionary-api-key.guard'
 import { EmailModule } from '@/common/emails/email.module'
 import { RedisModule } from '@/common/redis/redis.module'
+import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 
 const sharedServices = [
   PrismaService,
@@ -21,6 +22,7 @@ const sharedServices = [
   TwoFactorService,
   CloudinaryService,
   SpeechToTextService,
+  UserStatRepository,
 ]
 
 @Global()

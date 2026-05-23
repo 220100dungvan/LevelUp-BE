@@ -6,6 +6,7 @@ import { ShadowingRepository } from '@/modules/shadowing/shadowing.repo'
 import { SubmitShadowingBodyType } from '@/modules/shadowing/shadowing.schema'
 import { VideoSessionRepository } from '@/modules/video-session/video-session.repo'
 import { VideoRepository } from '@/modules/video/video.repo'
+import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 
 @Injectable()
@@ -16,6 +17,7 @@ export class ShadowingService {
     private readonly videoRepository: VideoRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly speechToTextService: SpeechToTextService,
+    private readonly userStatRepository: UserStatRepository,
   ) {}
 
   async submitResult(body: SubmitShadowingBodyType, audioBuffer: Buffer, audioMimetype: string, userId: string) {
@@ -49,6 +51,14 @@ export class ShadowingService {
       score,
       feedbackJson: JSON.stringify(feedbackWords),
     })
+
+    const submittedCount = await this.sessionRepository.countShadowingResultsBySessionId(body.sessionId)
+    if (submittedCount === session.video._count.sentences) {
+      const finishResult = await this.sessionRepository.finishSessionIfPending(body.sessionId)
+      if (finishResult.count > 0) {
+        await this.userStatRepository.updateStreak(session.userId)
+      }
+    }
 
     return { score, transcribedText: transcribedText.text, feedbackJson: feedbackWords, audioUrl }
   }

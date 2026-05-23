@@ -1,6 +1,7 @@
 import { UserRole } from '@/common/constants/auth.constant'
 import { isDataValidationPrismaError, isNotFoundPrismaError } from '@/common/utils/helpers'
 import { VocabularyRepository } from '@/modules/vocabulary/vocabulary.repo'
+import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import {
   AddItemsToListBodyType,
   CreateVocabularyBodyType,
@@ -18,7 +19,10 @@ import { encryptData } from '@/common/utils/encryption'
 
 @Injectable()
 export class VocabularyService {
-  constructor(private readonly vocabularyRepository: VocabularyRepository) {}
+  constructor(
+    private readonly vocabularyRepository: VocabularyRepository,
+    private readonly userStatRepository: UserStatRepository,
+  ) {}
 
   private async verifyAccess(
     list: { id: string; isPublic: boolean; createdBy: string },
@@ -271,6 +275,9 @@ export class VocabularyService {
       this.vocabularyRepository.updateListProgress(userId, listId),
       this.vocabularyRepository.updateUserStat(userId, isCorrect, isNewWord),
     ])
+
+    // Cập nhật streak (idempotent)
+    await this.userStatRepository.updateStreak(userId)
 
     return {
       status: progress.status,

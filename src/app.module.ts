@@ -25,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule'
 import { RemoveRefreshTokenService } from '@/cronjobs/remove-refresh-token.cronjob'
 import { BullModule } from '@nestjs/bullmq'
 import { ClassModule } from './modules/class/class.module'
+import { DashboardModule } from './modules/dashboard/dashboard.module'
 import envConfig from '@/common/utils/config'
 
 @Module({
@@ -64,6 +65,7 @@ import envConfig from '@/common/utils/config'
       }),
     }),
     ClassModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

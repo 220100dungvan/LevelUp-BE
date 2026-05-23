@@ -2,6 +2,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { VideoRepository } from '@/modules/video/video.repo'
 import { VideoSessionRepository } from '@/modules/video-session/video-session.repo'
+import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import { StartSessionBodyType } from '@/modules/video-session/video-session.schema'
 
 @Injectable()
@@ -9,6 +10,7 @@ export class VideoSessionService {
   constructor(
     private readonly sessionRepo: VideoSessionRepository,
     private readonly videoRepo: VideoRepository,
+    private readonly userStatRepository: UserStatRepository,
   ) {}
 
   // ─── Start / Resume session ─────────────────────────────────────────────────
@@ -40,6 +42,9 @@ export class VideoSessionService {
     if (session.finishedAt) throw new BadRequestException('Error.SessionAlreadyFinished')
 
     await this.sessionRepo.finishSession(sessionId)
+
+    // Update learning streak (idempotent)
+    await this.userStatRepository.updateStreak(session.userId)
 
     const totalSentences = session.video._count.sentences
     const durationSec = Math.round((Date.now() - session.createdAt.getTime()) / 1000)
