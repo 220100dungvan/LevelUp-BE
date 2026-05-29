@@ -1,20 +1,21 @@
 import { Injectable } from '@nestjs/common'
+import { type SessionMode } from '@/generated/prisma/client'
 import { PrismaService } from '@/common/services/prisma.service'
 
 @Injectable()
 export class VideoSessionRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  findActiveSession(userId: string, videoId: string, mode: string) {
+  findActiveSession(userId: string, videoId: string, mode: SessionMode) {
     return this.prismaService.userLearningSession.findFirst({
-      where: { userId, videoId, mode: mode as any, finishedAt: null },
+      where: { userId, videoId, mode, finishedAt: null },
       orderBy: { createdAt: 'desc' },
     })
   }
 
-  createSession(payload: { userId: string; videoId: string; mode: string }) {
+  createSession(payload: { userId: string; videoId: string; mode: SessionMode }) {
     return this.prismaService.userLearningSession.create({
-      data: { userId: payload.userId, videoId: payload.videoId, mode: payload.mode as any },
+      data: { userId: payload.userId, videoId: payload.videoId, mode: payload.mode },
     })
   }
 
@@ -35,6 +36,21 @@ export class VideoSessionRepository {
       where: { id: sessionId },
       data: { finishedAt: new Date() },
     })
+  }
+
+  finishSessionIfPending(sessionId: number) {
+    return this.prismaService.userLearningSession.updateMany({
+      where: { id: sessionId, finishedAt: null },
+      data: { finishedAt: new Date() },
+    })
+  }
+
+  countDictationResultsBySessionId(sessionId: number) {
+    return this.prismaService.userDictationResult.count({ where: { sessionId } })
+  }
+
+  countShadowingResultsBySessionId(sessionId: number) {
+    return this.prismaService.userShadowingResult.count({ where: { sessionId } })
   }
 
   async findCompletedDictationSentenceIds(sessionId: number): Promise<number[]> {

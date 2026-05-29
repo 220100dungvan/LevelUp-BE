@@ -4,6 +4,7 @@ import { VideoRepository } from '@/modules/video/video.repo'
 import { DictationRepository } from '@/modules/dictation/dictation.repo'
 import { SubmitDictationBodyType } from '@/modules/dictation/dictation.schema'
 import { TokenService } from '@/common/services/token.service'
+import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import { DictationSubmitPayload } from '@/common/types/jwt.type'
 import { computeDictationDiff } from '@/common/utils/scoring'
 
@@ -14,6 +15,7 @@ export class DictationService {
     private readonly sessionRepo: VideoSessionRepository,
     private readonly videoRepo: VideoRepository,
     private readonly tokenService: TokenService,
+    private readonly userStatRepository: UserStatRepository,
   ) {}
 
   async submitResult(body: SubmitDictationBodyType, userId: string) {
@@ -53,6 +55,16 @@ export class DictationService {
       wrongCount,
       replayCount,
     })
+
+    const submittedCount = await this.sessionRepo.countDictationResultsBySessionId(sessionId)
+    if (submittedCount === session.video._count.sentences) {
+      const finishResult = await this.sessionRepo.finishSessionIfPending(sessionId)
+      // finishResult.count > 0 indicates we actually set finishedAt now
+      // call updateStreak only when session transitions to finished
+      if (finishResult.count > 0) {
+        await this.userStatRepository.updateStreak(session.userId)
+      }
+    }
 
     // 7. Query tất cả submitted results trong session này
     const submittedResults = await this.dictationRepo.findResultsBySessionId(sessionId)

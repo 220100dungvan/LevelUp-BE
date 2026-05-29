@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import envConfig from '@/common/utils/config'
+import helmet from 'helmet'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
@@ -28,6 +29,7 @@ async function bootstrap() {
     origin: envConfig.FRONTEND_URL,
     credentials: true,
   })
-  await app.listen(process.env.PORT ?? 4000)
+  app.use(helmet())
+  await app.listen(process.env.PORT ?? 4000, '0.0.0.0')
 }
 bootstrap()

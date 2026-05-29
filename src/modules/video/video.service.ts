@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { VideoRepository } from '@/modules/video/video.repo'
 import { Innertube } from 'youtubei.js'
 import {
@@ -6,6 +6,7 @@ import {
   CreateVideoSentenceBodyType,
   CreateVideoTopicBodyType,
   GetVideosQueryType,
+  GetVideoTopicsResType,
   ProcessYoutubeVideoUrlBodyType,
   UpdateVideoBodyType,
   UpdateVideoSentenceBodyType,
@@ -16,6 +17,8 @@ import { isUniqueConstraintPrismaError } from '@/common/utils/helpers'
 import { CloudinaryService } from '@/common/services/cloudinary.service'
 import { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { encryptData } from '@/common/utils/encryption'
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import type { Cache } from 'cache-manager'
 
 interface TranscriptSegment {
   text: string
@@ -38,6 +41,7 @@ export class VideoService {
   constructor(
     private readonly videoRepository: VideoRepository,
     private readonly cloudinaryService: CloudinaryService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   private toProcessedSentences(transcript: TranscriptSegment[]) {
@@ -367,8 +371,24 @@ ${JSON.stringify(inputItems)}`,
   }
 
   async getVideoTopics() {
+    const cacheKey = 'video:topics'
+    const cached = await this.cacheManager.get<GetVideoTopicsResType>(cacheKey)
+    if (cached) {
+      if (Array.isArray(cached)) return { data: cached }
+      return cached
+    }
+
     const topics = await this.videoRepository.findAllTopics()
-    return { data: topics }
+    const result: GetVideoTopicsResType = {
+      data: topics.map((topic) => ({
+        ...topic,
+        createdAt: topic.createdAt ? topic.createdAt.toISOString() : null,
+        updatedAt: topic.updatedAt ? topic.updatedAt.toISOString() : null,
+        deletedAt: topic.deletedAt ? topic.deletedAt.toISOString() : null,
+      })),
+    }
+    await this.cacheManager.set(cacheKey, result, 10 * 60 * 1000)
+    return result
   }
 
   getVideos(query: GetVideosQueryType, userId?: string) {
@@ -416,6 +436,10 @@ ${JSON.stringify(inputItems)}`,
     }
   }
 
+  private async invalidateVideoCache() {
+    await this.cacheManager.del('video:topics')
+  }
+
   async createTopic(body: CreateVideoTopicBodyType, thumbnail: UploadedFileData) {
     if (!thumbnail) {
       throw new UnprocessableEntityException([
@@ -427,6 +451,7 @@ ${JSON.stringify(inputItems)}`,
     }
 
     const thumbnailUrl = await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_VIDEO_TOPIC_FOLDER)
+    await this.invalidateVideoCache()
     return this.videoRepository.createTopic(body, thumbnailUrl)
   }
 
@@ -437,13 +462,16 @@ ${JSON.stringify(inputItems)}`,
     const thumbnailUrl = thumbnail
       ? await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_VIDEO_TOPIC_FOLDER)
       : undefined
-    return this.videoRepository.updateTopic(topicId, body, thumbnailUrl)
+    const updatedTopics = await this.videoRepository.updateTopic(topicId, body, thumbnailUrl)
+    await this.invalidateVideoCache()
+    return updatedTopics
   }
 
   async deleteTopic(topicId: string) {
     const topic = await this.videoRepository.findTopicById(topicId)
     if (!topic) throw new NotFoundException('Error.VideoTopicNotFound')
     await this.videoRepository.softDeleteTopic(topicId)
+    await this.invalidateVideoCache()
     return { message: 'Xóa chủ đề video thành công' }
   }
 

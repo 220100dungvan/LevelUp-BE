@@ -23,6 +23,29 @@ const configSchema = z.object({
   DICTIONARY_API_KEY_SECRET: z.string(),
   RESEND_API_KEY: z.string(),
   APP_NAME: z.string(),
+  EMAIL_FROM: z.string(),
+
+  // Firebase
+  FIREBASE_PROJECT_ID: z.string(),
+  FIREBASE_CLIENT_EMAIL: z.string(),
+  FIREBASE_PRIVATE_KEY: z.string(),
+  // docker
+  POSTGRES_CONTAINER_NAME: z.string(),
+  POSTGRES_USER: z.string(),
+  POSTGRES_PASSWORD: z.string(),
+  POSTGRES_DB: z.string(),
+  POSTGRES_PORT: z.string(),
+
+  REDIS_CONTAINER_NAME: z.string(),
+  REDIS_PORT: z.string(),
+  REDIS_HOST: z.string(),
+  REDIS_URL: z.string(),
+  REDIS_URL_DOCKER: z.string(),
+
+  APP_CONTAINER_NAME: z.string(),
+  DATABASE_URL_DOCKER: z.string(),
+  APP_PORT: z.string(),
+
   OTP_EXPIRES_IN: z.string(),
   ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 characters long'),
   SERPAPI_KEY: z.string(),

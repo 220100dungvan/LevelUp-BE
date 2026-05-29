@@ -137,7 +137,7 @@ model UserStat {
   totalNeedReview   Int       @default(0) @map("total_need_review")
   totalReviews      Int       @default(0) @map("total_reviews")
   learningStreak    Int       @default(0) @map("learning_streak")
-  lastLearnDate     DateTime? @map("last_learn_date") @db.Date
+  lastLearnDate     DateTime? @map("last_learn_date") @db.Timestamp(3)
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id])
@@ -149,7 +149,7 @@ model UserLearningDaily {
   id            Int      @id @default(autoincrement())
   userId        String   @map("user_id") @db.Uuid
   listId        String   @map("list_id") @db.Uuid
-  date          DateTime @db.Date
+  date          DateTime @db.Timestamp(3)
   wordsLearned  Int      @default(0) @map("words_learned")
   wordsReviewed Int      @default(0) @map("words_reviewed")
   correctCount  Int      @default(0) @map("correct_count")
@@ -439,6 +439,7 @@ model UserDictationResult {
   wrongCount   Int      @default(0) @map("wrong_count")
   isRevealed   Boolean  @default(false) @map("is_revealed")
   createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
 
   session  UserLearningSession @relation(fields: [sessionId], references: [id])
   sentence VideoSentence       @relation(fields: [sentenceId], references: [id])
@@ -455,6 +456,7 @@ model UserShadowingResult {
   score        Float?
   feedbackJson String?  @map("feedback_json") @db.Text
   createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
 
   session  UserLearningSession @relation(fields: [sessionId], references: [id])
   sentence VideoSentence       @relation(fields: [sentenceId], references: [id])
@@ -665,9 +667,13 @@ model SpeakingParticipant {
 }
 
 model Class {
-  id        String    @id @default(uuid()) @db.Uuid
-  name      String
-  teacherId String    @map("teacher_id") @db.Uuid
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String
+  teacherId   String  @map("teacher_id") @db.Uuid
+  description String? @db.Text
+  inviteCode  String  @unique @map("invite_code")
+  imageUrl    String? @map("image_url")
+
   createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at")
 
@@ -686,7 +692,7 @@ model ClassMember {
   role     ClassRole @default(STUDENT)
   joinedAt DateTime  @default(now()) @map("joined_at")
 
-  class Class @relation(fields: [classId], references: [id])
+  classRoom Class @relation(fields: [classId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
 
   @@unique([classId, userId])

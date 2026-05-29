@@ -5,56 +5,49 @@ export interface TranscribeResult {
   text: string
 }
 
-interface GroqTranscriptionResponse {
+interface FastAPISTTResponse {
   text: string
+  language: string
 }
 
 @Injectable()
 export class SpeechToTextService {
   private readonly logger = new Logger(SpeechToTextService.name)
 
-  async transcribe(buffer: Buffer, mimetype: string, language = 'vi'): Promise<TranscribeResult> {
+  async transcribe(buffer: Buffer, mimetype: string, language = 'en'): Promise<TranscribeResult> {
     if (!buffer || buffer.length === 0) {
       throw new InternalServerErrorException('Audio buffer rỗng, không thể nhận dạng.')
     }
 
     const ext = this.resolveExtension(mimetype)
-    this.logger.debug(
-      `Groq STT | model=${envConfig.GROQ_STT_MODEL} | size=${buffer.length}B | lang=${language} | ext=${ext}`,
-    )
+    this.logger.debug(`FastAPI STT | size=${buffer.length}B | lang=${language} | ext=${ext}`)
 
     const safeArrayBuffer = new Uint8Array(buffer).buffer
 
     const form = new FormData()
     form.append('file', new Blob([safeArrayBuffer], { type: mimetype }), `audio.${ext}`)
-    form.append('model', envConfig.GROQ_STT_MODEL)
     form.append('language', language)
-    form.append('response_format', 'json')
-    form.append('temperature', '0')
 
     try {
-      const response = await fetch(envConfig.GROQ_AUDIO_API_ENDPOINT, {
+      const response = await fetch(`${envConfig.FASTAPI_SERVER_URL}/stt`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${envConfig.GROQ_API_KEY}`,
-        },
         body: form,
       })
 
       if (!response.ok) {
         const errorBody = await response.text()
-        this.logger.error(`Groq STT HTTP ${response.status}: ${errorBody}`)
+        this.logger.error(`FastAPI STT HTTP ${response.status}: ${errorBody}`)
         throw new InternalServerErrorException('Nhận dạng giọng nói thất bại. Vui lòng thử lại.')
       }
 
-      const data = (await response.json()) as GroqTranscriptionResponse
+      const data = (await response.json()) as FastAPISTTResponse
       const text = data.text.trim()
 
-      this.logger.debug(`STT result: "${text}"`)
+      this.logger.debug(`STT result: "${text}" | detected language: ${data.language}`)
       return { text }
     } catch (error) {
       if (error instanceof InternalServerErrorException) throw error
-      this.logger.error('Groq STT lỗi không xác định', error instanceof Error ? error.stack : String(error))
+      this.logger.error('FastAPI STT lỗi không xác định', error instanceof Error ? error.stack : String(error))
       throw new InternalServerErrorException('Nhận dạng giọng nói thất bại. Vui lòng thử lại.')
     }
   }

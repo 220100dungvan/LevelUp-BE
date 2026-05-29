@@ -10,6 +10,7 @@ import {
   UpdateTopicBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { Injectable } from '@nestjs/common'
+import { startOfDay } from 'date-fns'
 
 @Injectable()
 export class VocabularyRepository {
@@ -327,8 +328,7 @@ export class VocabularyRepository {
 
   // Upsert UserLearningDaily stats
   async updateLearningDaily(userId: string, listId: string, isCorrect: boolean, isNewWord: boolean) {
-    const today = new Date()
-    today.setUTCHours(0, 0, 0, 0)
+    const today = startOfDay(new Date())
 
     return this.prismaService.userLearningDaily.upsert({
       where: { userId_listId_date: { userId, listId, date: today } },

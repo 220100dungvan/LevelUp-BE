@@ -48,6 +48,7 @@ import {
   optionalImageFileValidationPipe,
   requiredImageFileValidationPipe,
 } from '@/common/pipes/image-file-validation.pipe'
+import { Throttle } from '@nestjs/throttler'
 
 @Controller('articles')
 export class ArticleController {
@@ -137,6 +138,7 @@ export class ArticleController {
     return this.articleService.updateProgress(userId, articleId, body)
   }
 
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
   @Post()
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   @UseInterceptors(FileInterceptor('thumbnail'))

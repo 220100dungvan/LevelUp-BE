@@ -149,6 +149,7 @@ export const QuizAttemptResultSchema = z
   .object({
     question: z.object({
       questionId: z.string().uuid(),
+      questionText: z.string(),
       questionTextVi: z.string().nullable(),
       evidenceText: z.string().nullable(),
       evidenceTextVi: z.string().nullable(),
@@ -161,7 +162,7 @@ export const QuizAttemptResultSchema = z
   })
   .strict()
 
-export const QuizAttemptLastSchema = z.object({
+export const QuizAttemptSchema = z.object({
   attemptId: z.number().int(),
   totalQuestions: z.number().int(),
   correctCount: z.number().int(),
@@ -173,12 +174,10 @@ export const GetArticleQuizResSchema = z.object({
   data: z.array(QuizQuestionAccessibleSchema),
 })
 
-export const GetArticleQuizAttemptResSchema = z.object({
-  data: QuizAttemptLastSchema,
-})
+export const GetArticleQuizAttemptResSchema = QuizAttemptSchema
 
 export const GetAllArticleQuizAttemptsResSchema = z.object({
-  data: z.array(QuizAttemptLastSchema),
+  data: z.array(QuizAttemptSchema.omit({ answerLogs: true })),
 })
 
 export const StartArticleQuizResSchema = z.object({
@@ -473,6 +472,6 @@ export type StartArticleQuizResType = z.infer<typeof StartArticleQuizResSchema>
 export type SubmitArticleQuizBodyType = z.infer<typeof SubmitArticleQuizBodySchema>
 export type SubmitArticleQuizResType = z.infer<typeof SubmitArticleQuizResSchema>
 export type QuizAttemptResultType = z.infer<typeof QuizAttemptResultSchema>
-export type QuizAttemptLastType = z.infer<typeof QuizAttemptLastSchema>
+export type QuizAttemptLastType = z.infer<typeof QuizAttemptSchema>
 export type GetArticleQuizAttemptResType = z.infer<typeof GetArticleQuizAttemptResSchema>
 export type GetAllArticleQuizAttemptsResType = z.infer<typeof GetAllArticleQuizAttemptsResSchema>

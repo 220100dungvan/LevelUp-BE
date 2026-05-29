@@ -26,6 +26,7 @@ export class ShadowingRepository {
       update: {
         audioUrl: payload.audioUrl,
         score: payload.score,
+        updatedAt: new Date(),
         feedbackJson: payload.feedbackJson,
       },
     })

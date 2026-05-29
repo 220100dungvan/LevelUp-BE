@@ -85,18 +85,8 @@ export class AuthService {
       type: body.type,
       expiresAt: addMilliseconds(new Date(), ms(envConfig.OTP_EXPIRES_IN as StringValue)),
     })
-    // 3. Gửi mã OTP
-    const { error } = await this.emailService.sendOTP({
-      email: body.email,
-      code,
-    })
-    if (error) {
-      throw new UnprocessableEntityException([
-        {
-          message: 'Error.FailedToSendOTP',
-        },
-      ])
-    }
+    // 3. Gửi mã OTP -  Đẩy vào queue
+    await this.emailService.sendOTP({ email: body.email, code })
     return { message: 'Gửi mã OTP thành công' }
   }
 

@@ -3,6 +3,7 @@ import { CloudinaryService } from '@/common/services/cloudinary.service'
 import { VoiceType, VoiceTypeType } from '@/common/constants/article.constant'
 import envConfig from '@/common/utils/config'
 import { ArticleRepository } from '@/modules/article/article.repo'
+import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import {
   ArticleProgressBodyType,
   CreateArticleBodyType,
@@ -29,6 +30,7 @@ export class ArticleService {
   constructor(
     private readonly articleRepository: ArticleRepository,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly userStatRepository: UserStatRepository,
   ) {}
 
   async getTopics() {
@@ -101,13 +103,11 @@ export class ArticleService {
     if (!attempt) throw new NotFoundException([{ message: 'Error.QuizAttemptNotFound' }])
 
     return {
-      data: {
-        attemptId: attempt.id,
-        totalQuestions: attempt.totalQuestions,
-        correctCount: attempt.correctCount,
-        finishedAt: attempt.finishedAt,
-        answerLogs: this.transformAnswerLogs(attempt.answerLogs, quizQuestions),
-      },
+      attemptId: attempt.id,
+      totalQuestions: attempt.totalQuestions,
+      correctCount: attempt.correctCount,
+      finishedAt: attempt.finishedAt,
+      answerLogs: this.transformAnswerLogs(attempt.answerLogs, quizQuestions),
     }
   }
 
@@ -134,10 +134,7 @@ export class ArticleService {
     const article = await this.articleRepository.findArticleById(articleId)
     if (!article) throw new NotFoundException([{ message: 'Error.ArticleNotFound' }])
 
-    const [quizQuestions, attempts] = await Promise.all([
-      this.articleRepository.findQuizByArticleId(articleId),
-      this.articleRepository.findFinishedQuizAttempts(userId, articleId),
-    ])
+    const attempts = await this.articleRepository.findFinishedQuizAttempts(userId, articleId)
 
     return {
       data: attempts.map((attempt) => ({
@@ -145,7 +142,6 @@ export class ArticleService {
         totalQuestions: attempt.totalQuestions,
         correctCount: attempt.correctCount,
         finishedAt: attempt.finishedAt,
-        answerLogs: this.transformAnswerLogs(attempt.answerLogs, quizQuestions),
       })),
     }
   }
@@ -299,6 +295,7 @@ export class ArticleService {
         return {
           question: {
             questionId: question.id,
+            questionText: question.questionText,
             questionTextVi: question.questionTextVi,
             evidenceText: question.evidenceText,
             evidenceTextVi: question.evidenceTextVi,
@@ -326,6 +323,8 @@ export class ArticleService {
       progressPct: body.progressPct,
       completed,
     })
+    // Update learning streak (idempotent) when user reads article
+    await this.userStatRepository.updateStreak(userId)
 
     return {
       message: 'Cập nhật tiến độ thành công',
@@ -473,16 +472,40 @@ export class ArticleService {
       ])
     }
 
-    const speechMarksRaw = response.headers.get('x-audio-metadata')
-    const speechMarksdata: AudioData | null = speechMarksRaw ? (JSON.parse(speechMarksRaw) as AudioData) : null
+    const contentType = response.headers.get('content-type') ?? ''
+    let audioBuffer: Buffer
+    let speechMarksdata: AudioData | null = null
 
-    const arrayBuffer = await response.arrayBuffer()
-    if (arrayBuffer.byteLength === 0) {
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as {
+        audioBase64?: string
+        metadata?: AudioData | null
+      }
+
+      if (!data.audioBase64) {
+        throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
+      }
+
+      audioBuffer = Buffer.from(data.audioBase64, 'base64')
+      speechMarksdata = data.metadata ?? null
+    } else {
+      const arrayBuffer = await response.arrayBuffer()
+      if (arrayBuffer.byteLength === 0) {
+        throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
+      }
+
+      audioBuffer = Buffer.from(arrayBuffer)
+
+      const speechMarksRaw = response.headers.get('x-audio-metadata')
+      speechMarksdata = speechMarksRaw ? (JSON.parse(speechMarksRaw) as AudioData) : null
+    }
+
+    if (audioBuffer.byteLength === 0) {
       throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
     }
 
     return {
-      audioBuffer: Buffer.from(arrayBuffer),
+      audioBuffer,
       speechMarksdata,
     }
   }

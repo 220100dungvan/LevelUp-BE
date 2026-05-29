@@ -17,6 +17,7 @@ export class DictationRepository {
       userText: payload.userText,
       correctCount: payload.correctCount,
       wrongCount: payload.wrongCount,
+      updatedAt: new Date(),
     }
 
     return this.prismaService.userDictationResult.upsert({
