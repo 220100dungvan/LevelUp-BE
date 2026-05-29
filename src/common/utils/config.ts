@@ -24,6 +24,11 @@ const configSchema = z.object({
   RESEND_API_KEY: z.string(),
   APP_NAME: z.string(),
   EMAIL_FROM: z.string(),
+
+  // Firebase
+  FIREBASE_PROJECT_ID: z.string(),
+  FIREBASE_CLIENT_EMAIL: z.string(),
+  FIREBASE_PRIVATE_KEY: z.string(),
   // docker
   POSTGRES_CONTAINER_NAME: z.string(),
   POSTGRES_USER: z.string(),

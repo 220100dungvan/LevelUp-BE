@@ -1,6 +1,7 @@
 export const REQUEST_USER_KEY = 'user'
 export const AUTH_TYPE_KEY = 'authType'
 export const ROLES_TYPE_KEY = 'roles'
+export const SKIP_APP_CHECK_KEY = 'skipAppCheck'
 
 export const AuthType = {
   Bearer: 'Bearer',

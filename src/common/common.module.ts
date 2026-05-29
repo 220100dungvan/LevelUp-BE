@@ -14,8 +14,11 @@ import { DictionaryAPIKeyGuard } from '@/common/guards/dictionary-api-key.guard'
 import { EmailModule } from '@/common/emails/email.module'
 import { RedisModule } from '@/common/redis/redis.module'
 import { UserStatRepository } from '@/common/repositories/user-stat.repo'
+import { FirebaseAdminService } from '@/common/services/firebase-admin.service'
+import { AppCheckGuard } from '@/common/guards/app-check.guard'
 
 const sharedServices = [
+  FirebaseAdminService,
   PrismaService,
   TokenService,
   HashingService,
@@ -35,6 +38,10 @@ const sharedServices = [
     {
       provide: APP_GUARD,
       useClass: AuthenticationGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AppCheckGuard,
     },
   ],
   exports: [...sharedServices, EmailModule, RedisModule],
