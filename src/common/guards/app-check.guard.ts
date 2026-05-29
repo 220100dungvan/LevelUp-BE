@@ -2,6 +2,7 @@ import { SKIP_APP_CHECK_KEY } from '@/common/constants/auth.constant'
 import { FirebaseAdminService } from '@/common/services/firebase-admin.service'
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, SetMetadata } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import envConfig from '@/common/utils/config'
 
 // Decorator để bỏ qua guard ở một số route đặc biệt
 export const SkipAppCheck = () => SetMetadata(SKIP_APP_CHECK_KEY, true)
@@ -22,6 +23,13 @@ export class AppCheckGuard implements CanActivate {
     if (skip) return true
 
     const request = context.switchToHttp().getRequest()
+
+    // Allow requests coming from the configured frontend origin to skip App Check
+    const origin = request.headers['origin'] || request.headers['referer']
+    if (origin && envConfig.FRONTEND_URL && String(origin).includes(envConfig.FRONTEND_URL)) {
+      return true
+    }
+
     const appCheckToken = request.headers['x-firebase-appcheck']
 
     if (!appCheckToken) {
