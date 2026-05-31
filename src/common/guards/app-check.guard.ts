@@ -15,6 +15,10 @@ export class AppCheckGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (envConfig.APP_CHECK_ENABLED === 'false') {
+      return true
+    }
+
     // Bỏ qua nếu có decorator @SkipAppCheck()
     const skip = this.reflector.getAllAndOverride<boolean>(SKIP_APP_CHECK_KEY, [
       context.getHandler(),
