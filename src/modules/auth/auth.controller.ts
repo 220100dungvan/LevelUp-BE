@@ -18,7 +18,6 @@ import { AuthService } from '@/modules/auth/auth.service'
 import { IsPublic } from '@/common/decorators/auth.decorator'
 import { UserAgent } from '@/common/decorators/user-agent.decorator'
 import { ActiveUser } from '@/common/decorators/active-user.decorator'
-import type { UserRoleType } from '@/common/constants/auth.constant'
 import { MessageResDTO } from '@/common/dtos/response.dto'
 import { EmptyBodyDTO } from '@/common/dtos/request.dto'
 import { Throttle } from '@nestjs/throttler'
@@ -44,13 +43,8 @@ export class AuthController {
   @Post('login')
   @IsPublic()
   @ZodResponse({ type: LoginResDTO })
-  login(
-    @Body() body: LoginBodyDTO,
-    @UserAgent() userAgent: string,
-    @Ip() ip: string,
-    @ActiveUser('role') role: UserRoleType,
-  ) {
-    return this.authService.login({ ...body, userAgent, ip, role })
+  login(@Body() body: LoginBodyDTO, @UserAgent() userAgent: string, @Ip() ip: string) {
+    return this.authService.login({ ...body, userAgent, ip })
   }
 
   @Post('refresh-token')
