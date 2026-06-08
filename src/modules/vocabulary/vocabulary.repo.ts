@@ -8,6 +8,7 @@ import {
   UpdateVocabularyListBodyType,
   CreateTopicBodyType,
   UpdateTopicBodyType,
+  SearchVocabularyQueryType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { Injectable } from '@nestjs/common'
 import { startOfDay } from 'date-fns'
@@ -55,6 +56,69 @@ export class VocabularyRepository {
   }
 
   async findLists(query: GetListsQueryType) {
+    const { topicId, level, page, limit, search } = query
+
+    const where = {
+      deletedAt: null,
+      topicId,
+      isPublic: true,
+      level,
+      name: search?.trim() ? { contains: search.trim(), mode: 'insensitive' as const } : undefined,
+    }
+
+    const [lists, total] = await Promise.all([
+      this.prismaService.vocabularyList.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          topic: {
+            select: {
+              id: true,
+              name: true,
+              thumbnailUrl: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+          _count: {
+            select: { items: true },
+          },
+        },
+      }),
+      this.prismaService.vocabularyList.count({ where }),
+    ])
+
+    const data = lists.map((list) => ({
+      id: list.id,
+      name: list.name,
+      description: list.description,
+      level: list.level,
+      isPublic: list.isPublic,
+      createdAt: list.createdAt,
+      totalWords: list._count.items,
+      topic: list.topic,
+      creator: list.creator,
+    }))
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  }
+
+  async findListsForAdmin(query: GetListsQueryType) {
     const { topicId, level, page, limit, search } = query
 
     const where = {
@@ -206,7 +270,7 @@ export class VocabularyRepository {
     })
   }
 
-  createVocabulary(payload: CreateVocabularyBodyType & { createdBy: string }) {
+  createVocabulary(payload: CreateVocabularyBodyType & { createdBy: string; imageUrl?: string }) {
     return this.prismaService.vocabulary.create({
       data: {
         word: payload.word,
@@ -218,9 +282,6 @@ export class VocabularyRepository {
         exampleEn: payload.exampleEn,
         exampleVi: payload.exampleVi,
         imageUrl: payload.imageUrl,
-        audioUrlUk: payload.audioUrlUk,
-        audioUrlUs: payload.audioUrlUs,
-        audioExampleUrl: payload.audioExampleUrl,
         level: payload.level,
         createdBy: payload.createdBy,
       },
@@ -494,6 +555,33 @@ export class VocabularyRepository {
         totalActivity: (row._sum.wordsLearned ?? 0) + (row._sum.wordsReviewed ?? 0),
       })),
     }
+  }
+
+  searchVocabularies(query: SearchVocabularyQueryType) {
+    return this.prismaService.vocabulary.findMany({
+      where: {
+        deletedAt: null,
+        word: { contains: query.word.trim(), mode: 'insensitive' },
+      },
+      orderBy: { word: 'asc' },
+      take: query.limit,
+      select: {
+        id: true,
+        word: true,
+        phoneticUk: true,
+        phoneticUs: true,
+        partOfSpeech: true,
+        meaningVi: true,
+        meaningEn: true,
+        exampleEn: true,
+        exampleVi: true,
+        imageUrl: true,
+        audioUrlUk: true,
+        audioUrlUs: true,
+        audioExampleUrl: true,
+        level: true,
+      },
+    })
   }
 
   private buildStartDate(days: number): Date {

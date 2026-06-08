@@ -1,5 +1,4 @@
 import {
-  AddItemsToListBodySchema,
   AddItemsToListResSchema,
   CreateVocabularyBodySchema,
   CreateVocabularyListBodySchema,
@@ -20,6 +19,10 @@ import {
   UpdateVocabularyListBodySchema,
   UpdateTopicBodySchema,
   VocabularyTopicSchema,
+  SearchVocabularyResSchema,
+  SearchVocabularyQuerySchema,
+  AddNewVocabularyToListBodySchema,
+  AddItemsByIdsBodySchema,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { createZodDto } from 'nestjs-zod'
 
@@ -45,8 +48,6 @@ export class UpdateVocabularyListBodyDTO extends createZodDto(UpdateVocabularyLi
 
 export class DeleteVocabularyListResDTO extends createZodDto(DeleteVocabularyListResSchema) {}
 
-export class AddItemsToListBodyDTO extends createZodDto(AddItemsToListBodySchema) {}
-
 export class AddItemsToListResDTO extends createZodDto(AddItemsToListResSchema) {}
 
 export class ReorderItemsBodyDTO extends createZodDto(ReorderItemsBodySchema) {}
@@ -64,3 +65,11 @@ export class GetLearningProgressOverviewQueryDTO extends createZodDto(GetLearnin
 export class GetLearningProgressOverviewResDTO extends createZodDto(GetLearningProgressOverviewResSchema) {}
 
 export class GetLearningProgressByListResDTO extends createZodDto(GetLearningProgressByListResSchema) {}
+
+export class SearchVocabularyQueryDTO extends createZodDto(SearchVocabularyQuerySchema) {}
+
+export class SearchVocabularyResDTO extends createZodDto(SearchVocabularyResSchema) {}
+
+export class AddNewVocabularyToListBodyDTO extends createZodDto(AddNewVocabularyToListBodySchema) {}
+
+export class AddItemsByIdsBodyDTO extends createZodDto(AddItemsByIdsBodySchema) {}

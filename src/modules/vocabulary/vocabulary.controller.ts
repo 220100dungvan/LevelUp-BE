@@ -4,8 +4,9 @@ import { ActiveUser } from '@/common/decorators/active-user.decorator'
 import { IsPublic } from '@/common/decorators/auth.decorator'
 import { Roles } from '@/common/decorators/roles.decorator'
 import { MessageResDTO } from '@/common/dtos/response.dto'
+import { optionalImageFileValidationPipe } from '@/common/pipes/image-file-validation.pipe'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 import {
-  AddItemsToListBodyDTO,
   AddItemsToListResDTO,
   CreateVocabularyBodyDTO,
   CreateVocabularyListBodyDTO,
@@ -21,9 +22,27 @@ import {
   UpdateVocabularyListBodyDTO,
   UpdateTopicBodyDTO,
   VocabularyTopicDTO,
+  SearchVocabularyResDTO,
+  SearchVocabularyQueryDTO,
+  AddNewVocabularyToListBodyDTO,
+  AddItemsByIdsBodyDTO,
 } from '@/modules/vocabulary/vocabulary.dto'
 import { VocabularyService } from '@/modules/vocabulary/vocabulary.service'
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
 import { ZodResponse } from 'nestjs-zod'
 
 @Controller('vocabularies')
@@ -75,8 +94,15 @@ export class VocabularyController {
   @IsPublic()
   @ZodResponse({ type: GetListsResDTO })
   getLists(@Query() query: GetListsQueryDTO) {
-    console.log('Query params:', query)
     return this.vocabularyService.getLists(query)
+  }
+
+  // Lấy danh sách các list từ vựng (admin)
+  @Get('admin/list')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: GetListsResDTO })
+  getListsForAdmin(@Query() query: GetListsQueryDTO) {
+    return this.vocabularyService.getListsForAdmin(query)
   }
 
   // Lấy chi tiết list, bao gồm danh sách từ vựng bên trong (kiểm tra quyền truy cập)
@@ -117,17 +143,30 @@ export class VocabularyController {
     return this.vocabularyService.deleteList(id, userId, role)
   }
 
-  // Thêm từ vựng vào list (từ đã có trong DB hoặc tạo mới)
   @Post('list/:id/items')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ZodResponse({ type: AddItemsToListResDTO })
-  addItemsToList(
+  addItemsByIds(
     @Param('id') id: string,
-    @Body() body: AddItemsToListBodyDTO,
+    @Body() body: AddItemsByIdsBodyDTO,
     @ActiveUser('userId') userId: string,
     @ActiveUser('role') role: RoleNameType,
   ) {
-    return this.vocabularyService.addItemsToList(id, body, userId, role)
+    return this.vocabularyService.addItemsByIds(id, body, userId, role)
+  }
+
+  @Post('list/:id/items/with-image')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('image'))
+  @ZodResponse({ type: AddItemsToListResDTO })
+  addNewVocabularyToList(
+    @Param('id') id: string,
+    @Body() body: AddNewVocabularyToListBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: RoleNameType,
+    @UploadedFile(optionalImageFileValidationPipe) image: UploadedFileData,
+  ) {
+    return this.vocabularyService.addNewVocabularyToList(id, body, image, userId, role)
   }
 
   // Xóa một từ khỏi list
@@ -164,5 +203,13 @@ export class VocabularyController {
   @ZodResponse({ type: CreateVocabularyResDTO })
   createVocabulary(@Body() body: CreateVocabularyBodyDTO, @ActiveUser('userId') userId: string) {
     return this.vocabularyService.createVocabulary(body, userId)
+  }
+
+  // Tìm kiếm từ vựng theo từ khóa
+  @Get('search')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ZodResponse({ type: SearchVocabularyResDTO })
+  searchVocabularies(@Query() query: SearchVocabularyQueryDTO) {
+    return this.vocabularyService.searchVocabularies(query)
   }
 }

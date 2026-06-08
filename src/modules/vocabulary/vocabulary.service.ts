@@ -3,7 +3,6 @@ import { isDataValidationPrismaError, isNotFoundPrismaError } from '@/common/uti
 import { VocabularyRepository } from '@/modules/vocabulary/vocabulary.repo'
 import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import {
-  AddItemsToListBodyType,
   CreateVocabularyBodyType,
   CreateVocabularyListBodyType,
   GetLearningProgressOverviewQueryType,
@@ -13,15 +12,28 @@ import {
   UpdateVocabularyListBodyType,
   CreateTopicBodyType,
   UpdateTopicBodyType,
+  SearchVocabularyQueryType,
+  AddNewVocabularyToListBodyType,
+  AddItemsByIdsBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common'
 import { encryptData } from '@/common/utils/encryption'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
+import { CloudinaryService } from '@/common/services/cloudinary.service'
+import envConfig from '@/common/utils/config'
 
 @Injectable()
 export class VocabularyService {
   constructor(
     private readonly vocabularyRepository: VocabularyRepository,
     private readonly userStatRepository: UserStatRepository,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   private async verifyAccess(
@@ -80,6 +92,13 @@ export class VocabularyService {
 
   getLists(query: GetListsQueryType) {
     return this.vocabularyRepository.findLists({
+      ...query,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
+    })
+  }
+  getListsForAdmin(query: GetListsQueryType) {
+    return this.vocabularyRepository.findListsForAdmin({
       ...query,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
@@ -171,34 +190,21 @@ export class VocabularyService {
     return { message: 'Xóa danh sách từ vựng thành công' }
   }
 
-  async addItemsToList(listId: string, body: AddItemsToListBodyType, userId: string, role: string) {
+  async addItemsByIds(listId: string, body: AddItemsByIdsBodyType, userId: string, role: string) {
     const list = await this.vocabularyRepository.findListById(listId)
     if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
 
     this.verifyOwnerOrAdmin(list.createdBy, userId, role)
 
-    const allVocabIds: string[] = [...(body.vocabularyIds ?? [])]
-
-    // Tạo các từ mới nếu có
-    if (body.newVocabularies?.length) {
-      const created = await Promise.all(
-        body.newVocabularies.map((v) => this.vocabularyRepository.createVocabulary({ ...v, createdBy: userId })),
-      )
-      allVocabIds.push(...created.map((v) => v.id))
-    }
-
-    // Tìm từ đã có trong list để skip
-    const existing = await this.vocabularyRepository.findExistingListItems(listId, allVocabIds)
+    const existing = await this.vocabularyRepository.findExistingListItems(listId, body.vocabularyIds)
     const existingIds = new Set(existing.map((e) => e.vocabularyId))
-    const newIds = allVocabIds.filter((id) => !existingIds.has(id))
+    const newIds = body.vocabularyIds.filter((id) => !existingIds.has(id))
 
     if (newIds.length === 0) {
-      return { added: 0, skipped: allVocabIds.length }
+      return { added: 0, skipped: body.vocabularyIds.length }
     }
 
-    // Lấy orderIndex hiện tại lớn nhất
     const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
-
     const items = newIds.map((vocabularyId, i) => ({
       listId,
       vocabularyId,
@@ -206,11 +212,45 @@ export class VocabularyService {
     }))
 
     await this.vocabularyRepository.addItemsToList(items)
+    return { added: newIds.length, skipped: body.vocabularyIds.length - newIds.length }
+  }
 
-    return {
-      added: newIds.length,
-      skipped: allVocabIds.length - newIds.length,
+  async addNewVocabularyToList(
+    listId: string,
+    body: AddNewVocabularyToListBodyType,
+    image: UploadedFileData,
+    userId: string,
+    role: string,
+  ) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwnerOrAdmin(list.createdBy, userId, role)
+
+    if (!image) {
+      throw new UnprocessableEntityException([
+        {
+          path: 'image',
+          message: 'Error.ImageIsRequired',
+        },
+      ])
     }
+    // Upload ảnh nếu có
+    let imageUrl: string | undefined
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_FOLDER)
+    }
+
+    const vocabulary = await this.vocabularyRepository.createVocabulary({
+      ...body,
+      imageUrl,
+      createdBy: userId,
+    })
+
+    const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
+    await this.vocabularyRepository.addItemsToList([{ listId, vocabularyId: vocabulary.id, orderIndex: maxIndex + 1 }])
+
+    return { added: 1, skipped: 0 }
   }
 
   async removeItemFromList(listId: string, vocabularyId: string, userId: string, role: string) {
@@ -311,5 +351,10 @@ export class VocabularyService {
 
       throw error
     }
+  }
+
+  async searchVocabularies(query: SearchVocabularyQueryType) {
+    const data = await this.vocabularyRepository.searchVocabularies(query)
+    return { data }
   }
 }

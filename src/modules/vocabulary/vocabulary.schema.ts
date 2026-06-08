@@ -66,10 +66,6 @@ export const CreateVocabularyBodySchema = z
     meaningEn: z.string().optional(),
     exampleEn: z.string().optional(),
     exampleVi: z.string().optional(),
-    imageUrl: z.string().url().optional(),
-    audioUrlUk: z.string().url().optional(),
-    audioUrlUs: z.string().url().optional(),
-    audioExampleUrl: z.string().url().optional(),
     level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
   })
   .strict()
@@ -171,23 +167,25 @@ export const DeleteVocabularyListResSchema = z.object({
   message: z.string(),
 })
 
-export const AddItemsToListBodySchema = z
+export const AddItemsByIdsBodySchema = z
   .object({
-    // Thêm từ đã có trong DB
-    vocabularyIds: z.array(z.string().uuid()).optional(),
-    // Tạo từ mới và thêm thẳng vào list
-    newVocabularies: z.array(CreateVocabularyBodySchema).optional(),
+    vocabularyIds: z.array(z.string().uuid()).min(1, 'Phải cung cấp ít nhất một vocabularyId'),
   })
   .strict()
-  .superRefine(({ vocabularyIds, newVocabularies }, ctx) => {
-    if (!vocabularyIds?.length && !newVocabularies?.length) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Phải cung cấp ít nhất một vocabularyId hoặc newVocabulary',
-        path: ['vocabularyIds'],
-      })
-    }
+
+export const AddNewVocabularyToListBodySchema = z
+  .object({
+    word: z.string().min(1).max(200),
+    meaningVi: z.string().min(1),
+    meaningEn: z.string().optional(),
+    phoneticUk: z.string().max(200).optional(),
+    phoneticUs: z.string().max(200).optional(),
+    partOfSpeech: z.string().max(100).optional(),
+    exampleEn: z.string().optional(),
+    exampleVi: z.string().optional(),
+    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]),
   })
+  .strict()
 
 export const AddItemsToListResSchema = z.object({
   added: z.number().int(),
@@ -255,15 +253,28 @@ export const GetLearningProgressByListResSchema = z.object({
 
 export const CreateVocabularyListResSchema = VocabularyListSummarySchema
 
+export const SearchVocabularyResSchema = z.object({
+  data: z.array(VocabularySchema),
+})
+
+export const SearchVocabularyQuerySchema = z
+  .object({
+    word: z.string().min(1).max(200),
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+  })
+  .strict()
+
 export type GetListsQueryType = z.infer<typeof GetListsQuerySchema>
 export type GetListsResType = z.infer<typeof GetListsResSchema>
 export type GetTopicsResType = z.infer<typeof GetTopicsResSchema>
 export type CreateVocabularyListBodyType = z.infer<typeof CreateVocabularyListBodySchema>
 export type UpdateVocabularyListBodyType = z.infer<typeof UpdateVocabularyListBodySchema>
-export type AddItemsToListBodyType = z.infer<typeof AddItemsToListBodySchema>
 export type CreateVocabularyBodyType = z.infer<typeof CreateVocabularyBodySchema>
 export type ReorderItemsBodyType = z.infer<typeof ReorderItemsBodySchema>
 export type SubmitLearningWordBodyType = z.infer<typeof SubmitLearningWordBodySchema>
 export type CreateTopicBodyType = z.infer<typeof CreateTopicBodySchema>
 export type UpdateTopicBodyType = z.infer<typeof UpdateTopicBodySchema>
 export type GetLearningProgressOverviewQueryType = z.infer<typeof GetLearningProgressOverviewQuerySchema>
+export type SearchVocabularyQueryType = z.infer<typeof SearchVocabularyQuerySchema>
+export type AddItemsByIdsBodyType = z.infer<typeof AddItemsByIdsBodySchema>
+export type AddNewVocabularyToListBodyType = z.infer<typeof AddNewVocabularyToListBodySchema>
