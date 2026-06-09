@@ -4,7 +4,7 @@ import {
   CreateVocabularyListBodySchema,
   CreateVocabularyListResSchema,
   CreateVocabularyResSchema,
-  CreateTopicBodySchema,
+  CreateVocabularyTopicBodySchema,
   DeleteVocabularyListResSchema,
   GetLearningProgressByListResSchema,
   GetLearningProgressOverviewQuerySchema,
@@ -17,7 +17,7 @@ import {
   SubmitLearningWordBodySchema,
   SubmitLearningWordResSchema,
   UpdateVocabularyListBodySchema,
-  UpdateTopicBodySchema,
+  UpdateVocabularyTopicBodySchema,
   VocabularyTopicSchema,
   SearchVocabularyResSchema,
   SearchVocabularyQuerySchema,
@@ -28,9 +28,9 @@ import { createZodDto } from 'nestjs-zod'
 
 export class GetTopicsResDTO extends createZodDto(GetTopicsResSchema) {}
 
-export class CreateTopicBodyDTO extends createZodDto(CreateTopicBodySchema) {}
+export class CreateVocabularyTopicBodyDTO extends createZodDto(CreateVocabularyTopicBodySchema) {}
 
-export class UpdateTopicBodyDTO extends createZodDto(UpdateTopicBodySchema) {}
+export class UpdateVocabularyTopicBodyDTO extends createZodDto(UpdateVocabularyTopicBodySchema) {}
 
 export class VocabularyTopicDTO extends createZodDto(VocabularyTopicSchema) {}
 

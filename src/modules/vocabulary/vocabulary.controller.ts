@@ -12,7 +12,6 @@ import {
   CreateVocabularyListBodyDTO,
   CreateVocabularyListResDTO,
   CreateVocabularyResDTO,
-  CreateTopicBodyDTO,
   DeleteVocabularyListResDTO,
   GetListDetailResDTO,
   GetListsQueryDTO,
@@ -20,12 +19,13 @@ import {
   GetTopicsResDTO,
   ReorderItemsBodyDTO,
   UpdateVocabularyListBodyDTO,
-  UpdateTopicBodyDTO,
+  UpdateVocabularyTopicBodyDTO,
   VocabularyTopicDTO,
   SearchVocabularyResDTO,
   SearchVocabularyQueryDTO,
   AddNewVocabularyToListBodyDTO,
   AddItemsByIdsBodyDTO,
+  CreateVocabularyTopicBodyDTO,
 } from '@/modules/vocabulary/vocabulary.dto'
 import { VocabularyService } from '@/modules/vocabulary/vocabulary.service'
 import {
@@ -67,17 +67,26 @@ export class VocabularyController {
   // Tạo mới chủ đề từ vựng [Admin]
   @Post('topic')
   @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @ZodResponse({ type: VocabularyTopicDTO })
-  createTopic(@Body() body: CreateTopicBodyDTO) {
-    return this.vocabularyService.createTopic(body)
+  createTopic(
+    @Body() body: CreateVocabularyTopicBodyDTO,
+    @UploadedFile(optionalImageFileValidationPipe) thumbnail: UploadedFileData,
+  ) {
+    return this.vocabularyService.createTopic(body, thumbnail)
   }
 
   // Cập nhật chủ đề từ vựng [Admin]
   @Patch('topic/:id')
   @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @ZodResponse({ type: VocabularyTopicDTO })
-  updateTopic(@Param('id') topicId: string, @Body() body: UpdateTopicBodyDTO) {
-    return this.vocabularyService.updateTopic(topicId, body)
+  updateTopic(
+    @Param('id') topicId: string,
+    @Body() body: UpdateVocabularyTopicBodyDTO,
+    @UploadedFile(optionalImageFileValidationPipe) thumbnail?: UploadedFileData,
+  ) {
+    return this.vocabularyService.updateTopic(topicId, body, thumbnail)
   }
 
   // Xóa mềm chủ đề từ vựng [Admin]

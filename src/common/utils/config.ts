@@ -63,6 +63,7 @@ const configSchema = z.object({
   CLOUDINARY_VOCABULARY_TOPIC_FOLDER: z.string(),
   CLOUDINARY_VOCABULARY_FOLDER: z.string(),
   CLOUDINARY_ARTICLE_AUDIO_FOLDER: z.string(),
+  CLOUDINARY_ARTICLE_TOPIC_FOLDER: z.string(),
   CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER: z.string(),
   LEARNING_TOKEN_SECRET: z.string(),
   // Dictionary

@@ -10,19 +10,17 @@ export const VocabularyTopicSchema = z.object({
   updatedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
-export const CreateTopicBodySchema = z
+export const CreateVocabularyTopicBodySchema = z
   .object({
     name: z.string().min(1).max(200),
     description: z.string().optional(),
-    thumbnailUrl: z.string().url().optional(),
   })
   .strict()
 
-export const UpdateTopicBodySchema = z
+export const UpdateVocabularyTopicBodySchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
-    thumbnailUrl: z.string().url().optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -272,8 +270,8 @@ export type UpdateVocabularyListBodyType = z.infer<typeof UpdateVocabularyListBo
 export type CreateVocabularyBodyType = z.infer<typeof CreateVocabularyBodySchema>
 export type ReorderItemsBodyType = z.infer<typeof ReorderItemsBodySchema>
 export type SubmitLearningWordBodyType = z.infer<typeof SubmitLearningWordBodySchema>
-export type CreateTopicBodyType = z.infer<typeof CreateTopicBodySchema>
-export type UpdateTopicBodyType = z.infer<typeof UpdateTopicBodySchema>
+export type CreateVocabularyTopicBodyType = z.infer<typeof CreateVocabularyTopicBodySchema>
+export type UpdateVocabularyTopicBodyType = z.infer<typeof UpdateVocabularyTopicBodySchema>
 export type GetLearningProgressOverviewQueryType = z.infer<typeof GetLearningProgressOverviewQuerySchema>
 export type SearchVocabularyQueryType = z.infer<typeof SearchVocabularyQuerySchema>
 export type AddItemsByIdsBodyType = z.infer<typeof AddItemsByIdsBodySchema>

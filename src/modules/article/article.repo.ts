@@ -13,8 +13,10 @@ import {
 } from '@/generated/prisma/client'
 import {
   CreateArticleBodyType,
+  CreateArticleTopicBodyType,
   CreateArticleVocabularyType,
   CreateQuizQuestionType,
+  UpdateArticleTopicBodyType,
   UpdateQuizOptionType,
 } from '@/modules/article/article.schema'
 import { Injectable } from '@nestjs/common'
@@ -27,6 +29,37 @@ export class ArticleRepository {
     return this.prismaService.articleTopic.findMany({
       where: { deletedAt: null },
       orderBy: { name: 'asc' },
+    })
+  }
+
+  findTopicById(topicId: string) {
+    return this.prismaService.articleTopic.findUnique({ where: { id: topicId, deletedAt: null } })
+  }
+
+  createTopic(data: CreateArticleTopicBodyType, thumbnailUrl: string) {
+    return this.prismaService.articleTopic.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        thumbnailUrl,
+      },
+    })
+  }
+
+  softDeleteTopic(topicId: string) {
+    return this.prismaService.articleTopic.update({
+      where: { id: topicId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    })
+  }
+
+  updateTopic(topicId: string, data: UpdateArticleTopicBodyType, thumbnailUrl?: string) {
+    return this.prismaService.articleTopic.update({
+      where: { id: topicId, deletedAt: null },
+      data: {
+        ...data,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      },
     })
   }
 

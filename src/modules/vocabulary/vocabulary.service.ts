@@ -10,11 +10,11 @@ import {
   ReorderItemsBodyType,
   SubmitLearningWordBodyType,
   UpdateVocabularyListBodyType,
-  CreateTopicBodyType,
-  UpdateTopicBodyType,
+  UpdateVocabularyTopicBodyType,
   SearchVocabularyQueryType,
   AddNewVocabularyToListBodyType,
   AddItemsByIdsBodyType,
+  CreateVocabularyTopicBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import {
   BadRequestException,
@@ -69,16 +69,33 @@ export class VocabularyService {
     return topic
   }
 
-  async createTopic(body: CreateTopicBodyType) {
-    return this.vocabularyRepository.createTopic(body)
+  async createTopic(body: CreateVocabularyTopicBodyType, thumbnail: UploadedFileData) {
+    if (!thumbnail) {
+      throw new UnprocessableEntityException([
+        {
+          path: 'thumbnail',
+          message: 'Error.ThumbnailIsRequired',
+        },
+      ])
+    }
+    const thumbnailUrl = await this.cloudinaryService.uploadImage(
+      thumbnail,
+      envConfig.CLOUDINARY_VOCABULARY_TOPIC_FOLDER,
+    )
+    return this.vocabularyRepository.createTopic(body, thumbnailUrl)
   }
 
-  async updateTopic(topicId: string, body: UpdateTopicBodyType) {
+  async updateTopic(topicId: string, body: UpdateVocabularyTopicBodyType, thumbnail?: UploadedFileData) {
     const topic = await this.vocabularyRepository.findTopicById(topicId)
     if (!topic) {
       throw new NotFoundException('Error.VocabularyTopicNotFound')
     }
-    return this.vocabularyRepository.updateTopic(topicId, body)
+
+    const thumbnailUrl = thumbnail
+      ? await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_VOCABULARY_TOPIC_FOLDER)
+      : undefined
+
+    return this.vocabularyRepository.updateTopic(topicId, body, thumbnailUrl)
   }
 
   async deleteTopic(topicId: string) {

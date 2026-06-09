@@ -14,6 +14,8 @@ import {
   SubmitArticleQuizBodyType,
   UpdateArticleBodyType,
   UpdateQuizQuestionType,
+  CreateArticleTopicBodyType,
+  UpdateArticleTopicBodyType,
 } from '@/modules/article/article.schema'
 import {
   BadGatewayException,
@@ -21,6 +23,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common'
 import { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { AudioData } from '@/modules/article/interfaces/audio.types'
@@ -36,6 +39,38 @@ export class ArticleService {
   async getTopics() {
     const topics = await this.articleRepository.findAllTopics()
     return { data: topics }
+  }
+
+  async createTopic(body: CreateArticleTopicBodyType, thumbnail: UploadedFileData) {
+    if (!thumbnail) {
+      throw new UnprocessableEntityException([
+        {
+          path: 'thumbnail',
+          message: 'Error.ThumbnailIsRequired',
+        },
+      ])
+    }
+
+    const thumbnailUrl = await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_ARTICLE_TOPIC_FOLDER)
+    return this.articleRepository.createTopic(body, thumbnailUrl)
+  }
+
+  async updateTopic(topicId: string, body: UpdateArticleTopicBodyType, thumbnail?: UploadedFileData) {
+    const topic = await this.articleRepository.findTopicById(topicId)
+    if (!topic) throw new NotFoundException('Error.ArticleTopicNotFound')
+
+    const thumbnailUrl = thumbnail
+      ? await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_ARTICLE_TOPIC_FOLDER)
+      : undefined
+    const updatedTopics = await this.articleRepository.updateTopic(topicId, body, thumbnailUrl)
+    return updatedTopics
+  }
+
+  async deleteTopic(topicId: string) {
+    const topic = await this.articleRepository.findTopicById(topicId)
+    if (!topic) throw new NotFoundException('Error.ArticleTopicNotFound')
+    await this.articleRepository.softDeleteTopic(topicId)
+    return { message: 'Xóa chủ đề bài viết thành công' }
   }
 
   async getArticles(query: GetArticlesQueryType) {

@@ -16,6 +16,28 @@ export const GetArticleTopicsResSchema = z.object({
   data: z.array(ArticleTopicSchema),
 })
 
+export const CreateArticleTopicBodySchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    description: z.string().optional(),
+  })
+  .strict()
+
+export const UpdateArticleTopicBodySchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    description: z.string().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (Object.keys(data).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Phải cung cấp ít nhất một trường để cập nhật',
+      })
+    }
+  })
+
 export const ArticleSchema = z.object({
   id: z.string().uuid(),
   level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
@@ -475,3 +497,5 @@ export type QuizAttemptResultType = z.infer<typeof QuizAttemptResultSchema>
 export type QuizAttemptLastType = z.infer<typeof QuizAttemptSchema>
 export type GetArticleQuizAttemptResType = z.infer<typeof GetArticleQuizAttemptResSchema>
 export type GetAllArticleQuizAttemptsResType = z.infer<typeof GetAllArticleQuizAttemptsResSchema>
+export type CreateArticleTopicBodyType = z.infer<typeof CreateArticleTopicBodySchema>
+export type UpdateArticleTopicBodyType = z.infer<typeof UpdateArticleTopicBodySchema>

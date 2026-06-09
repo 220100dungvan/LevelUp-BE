@@ -6,9 +6,9 @@ import {
   GetLearningProgressOverviewQueryType,
   GetListsQueryType,
   UpdateVocabularyListBodyType,
-  CreateTopicBodyType,
-  UpdateTopicBodyType,
+  UpdateVocabularyTopicBodyType,
   SearchVocabularyQueryType,
+  CreateVocabularyTopicBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { Injectable } from '@nestjs/common'
 import { startOfDay } from 'date-fns'
@@ -31,20 +31,23 @@ export class VocabularyRepository {
     })
   }
 
-  createTopic(payload: CreateTopicBodyType) {
+  createTopic(payload: CreateVocabularyTopicBodyType, thumbnailUrl: string) {
     return this.prismaService.vocabularyTopic.create({
       data: {
         name: payload.name,
         description: payload.description,
-        thumbnailUrl: payload.thumbnailUrl,
+        thumbnailUrl,
       },
     })
   }
 
-  updateTopic(id: string, data: UpdateTopicBodyType) {
+  updateTopic(id: string, data: UpdateVocabularyTopicBodyType, thumbnailUrl?: string) {
     return this.prismaService.vocabularyTopic.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      },
     })
   }
 
