@@ -1,6 +1,6 @@
 import { UserRole, UserRoleType } from '@/common/constants/auth.constant'
 import { CloudinaryService } from '@/common/services/cloudinary.service'
-import { VoiceType, VoiceTypeType } from '@/common/constants/article.constant'
+import { VoiceType } from '@/common/constants/article.constant'
 import envConfig from '@/common/utils/config'
 import { ArticleRepository } from '@/modules/article/article.repo'
 import { UserStatRepository } from '@/common/repositories/user-stat.repo'
@@ -18,7 +18,6 @@ import {
   UpdateArticleTopicBodyType,
 } from '@/modules/article/article.schema'
 import {
-  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -27,6 +26,7 @@ import {
 } from '@nestjs/common'
 import { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { AudioData } from '@/modules/article/interfaces/audio.types'
+import { TextToSpeechService } from '@/common/services/text-to-speech.service'
 
 @Injectable()
 export class ArticleService {
@@ -34,6 +34,7 @@ export class ArticleService {
     private readonly articleRepository: ArticleRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly userStatRepository: UserStatRepository,
+    private readonly textToSpeechService: TextToSpeechService,
   ) {}
 
   async getTopics() {
@@ -423,7 +424,10 @@ export class ArticleService {
   async createArticle(body: CreateArticleBodyType, createdBy: string, thumbnailFile?: UploadedFileData) {
     const content = this.normalizeArticleContent(body.content)
     const voiceType = body.voiceType ?? VoiceType.UK_FEMALE
-    const { audioBuffer, speechMarksdata } = await this.generateArticleAudio(content, voiceType)
+    const { audioBuffer, speechMarksData: speechMarksdata } = await this.textToSpeechService.generateArticleAudio(
+      content,
+      voiceType,
+    )
     const dateStamp = this.formatDateStamp(new Date())
     const articleSlug = this.slugify(body.title)
 
@@ -480,69 +484,6 @@ export class ArticleService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .replace(/-{2,}/g, '-')
-  }
-
-  private async generateArticleAudio(
-    content: string,
-    voiceType: VoiceTypeType,
-  ): Promise<{ audioBuffer: Buffer; speechMarksdata: AudioData | null }> {
-    const response = await fetch(`${envConfig.FASTAPI_SERVER_URL}/tts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        text: content,
-        voice_type: voiceType,
-      }).toString(),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new BadGatewayException([
-        {
-          message: 'Error.GenerateArticleAudioFailed',
-          detail: errorText || `FastAPI TTS returned ${response.status}`,
-        },
-      ])
-    }
-
-    const contentType = response.headers.get('content-type') ?? ''
-    let audioBuffer: Buffer
-    let speechMarksdata: AudioData | null = null
-
-    if (contentType.includes('application/json')) {
-      const data = (await response.json()) as {
-        audioBase64?: string
-        metadata?: AudioData | null
-      }
-
-      if (!data.audioBase64) {
-        throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
-      }
-
-      audioBuffer = Buffer.from(data.audioBase64, 'base64')
-      speechMarksdata = data.metadata ?? null
-    } else {
-      const arrayBuffer = await response.arrayBuffer()
-      if (arrayBuffer.byteLength === 0) {
-        throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
-      }
-
-      audioBuffer = Buffer.from(arrayBuffer)
-
-      const speechMarksRaw = response.headers.get('x-audio-metadata')
-      speechMarksdata = speechMarksRaw ? (JSON.parse(speechMarksRaw) as AudioData) : null
-    }
-
-    if (audioBuffer.byteLength === 0) {
-      throw new BadGatewayException([{ message: 'Error.GenerateArticleAudioFailed' }])
-    }
-
-    return {
-      audioBuffer,
-      speechMarksdata,
-    }
   }
 
   async createArticleVocabularies(

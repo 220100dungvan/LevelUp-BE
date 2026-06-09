@@ -23,6 +23,11 @@ import {
   SearchVocabularyQuerySchema,
   AddNewVocabularyToListBodySchema,
   AddItemsByIdsBodySchema,
+  GetWordsAdminQuerySchema,
+  GetWordsAdminResSchema,
+  UpdateVocabularyBodySchema,
+  DeleteVocabularyResSchema,
+  VocabularyWordsStatsSchema,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { createZodDto } from 'nestjs-zod'
 
@@ -73,3 +78,13 @@ export class SearchVocabularyResDTO extends createZodDto(SearchVocabularyResSche
 export class AddNewVocabularyToListBodyDTO extends createZodDto(AddNewVocabularyToListBodySchema) {}
 
 export class AddItemsByIdsBodyDTO extends createZodDto(AddItemsByIdsBodySchema) {}
+
+export class GetWordsAdminQueryDTO extends createZodDto(GetWordsAdminQuerySchema) {}
+
+export class GetWordsAdminResDTO extends createZodDto(GetWordsAdminResSchema) {}
+
+export class UpdateVocabularyBodyDTO extends createZodDto(UpdateVocabularyBodySchema) {}
+
+export class DeleteVocabularyResDTO extends createZodDto(DeleteVocabularyResSchema) {}
+
+export class VocabularyWordsStatsDTO extends createZodDto(VocabularyWordsStatsSchema) {}

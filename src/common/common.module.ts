@@ -16,6 +16,7 @@ import { RedisModule } from '@/common/redis/redis.module'
 import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import { FirebaseAdminService } from '@/common/services/firebase-admin.service'
 import { AppCheckGuard } from '@/common/guards/app-check.guard'
+import { TextToSpeechService } from '@/common/services/text-to-speech.service'
 
 const sharedServices = [
   FirebaseAdminService,
@@ -25,6 +26,7 @@ const sharedServices = [
   TwoFactorService,
   CloudinaryService,
   SpeechToTextService,
+  TextToSpeechService,
   UserStatRepository,
 ]
 

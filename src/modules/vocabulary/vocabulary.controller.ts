@@ -26,6 +26,10 @@ import {
   AddNewVocabularyToListBodyDTO,
   AddItemsByIdsBodyDTO,
   CreateVocabularyTopicBodyDTO,
+  GetWordsAdminResDTO,
+  GetWordsAdminQueryDTO,
+  UpdateVocabularyBodyDTO,
+  DeleteVocabularyResDTO,
 } from '@/modules/vocabulary/vocabulary.dto'
 import { VocabularyService } from '@/modules/vocabulary/vocabulary.service'
 import {
@@ -209,9 +213,14 @@ export class VocabularyController {
   // Tạo một từ vựng standalone [Teacher/Admin]
   @Post()
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('image'))
   @ZodResponse({ type: CreateVocabularyResDTO })
-  createVocabulary(@Body() body: CreateVocabularyBodyDTO, @ActiveUser('userId') userId: string) {
-    return this.vocabularyService.createVocabulary(body, userId)
+  createVocabulary(
+    @Body() body: CreateVocabularyBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
+  ) {
+    return this.vocabularyService.createVocabulary(body, userId, image)
   }
 
   // Tìm kiếm từ vựng theo từ khóa
@@ -220,5 +229,31 @@ export class VocabularyController {
   @ZodResponse({ type: SearchVocabularyResDTO })
   searchVocabularies(@Query() query: SearchVocabularyQueryDTO) {
     return this.vocabularyService.searchVocabularies(query)
+  }
+
+  // Lấy danh sách từ vựng dạng phân trang cho admin,
+  // kèm stats (total, coverage audio/image/IPA, by-level, by-pos)
+  @Get('words')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: GetWordsAdminResDTO })
+  getWordsForAdmin(@Query() query: GetWordsAdminQueryDTO) {
+    return this.vocabularyService.getWordsForAdmin(query)
+  }
+
+  // Chỉnh sửa thông tin text của word (không bao gồm image)
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: CreateVocabularyResDTO })
+  updateVocabulary(@Param('id') id: string, @Body() body: UpdateVocabularyBodyDTO) {
+    return this.vocabularyService.updateVocabulary(id, body)
+  }
+
+  // Soft delete word; word vẫn còn trong list items hiện có nhưng sẽ ẩn với user
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: DeleteVocabularyResDTO })
+  deleteVocabulary(@Param('id') id: string) {
+    return this.vocabularyService.deleteVocabulary(id)
   }
 }

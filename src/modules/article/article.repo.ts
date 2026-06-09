@@ -265,7 +265,7 @@ export class ArticleRepository {
           where: {
             word_partOfSpeech_meaningVi: {
               word: v.word.toLowerCase().trim(),
-              partOfSpeech: v.partOfSpeech ?? '',
+              partOfSpeech: v.partOfSpeech,
               meaningVi: v.meaningVi,
             },
           },
@@ -273,7 +273,7 @@ export class ArticleRepository {
             word: v.word.toLowerCase().trim(),
             phoneticUk: v.phoneticUk ?? null,
             phoneticUs: v.phoneticUs ?? null,
-            partOfSpeech: v.partOfSpeech ?? null,
+            partOfSpeech: v.partOfSpeech,
             meaningVi: v.meaningVi,
             meaningEn: v.meaningEn ?? null,
             exampleEn: v.exampleEn ?? null,

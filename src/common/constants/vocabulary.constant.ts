@@ -23,3 +23,20 @@ export const Level = {
 } as const
 
 export type LevelType = (typeof Level)[keyof typeof Level]
+
+export const PART_OF_SPEECH = {
+  NOUN: 'NOUN',
+  VERB: 'VERB',
+  ADJECTIVE: 'ADJECTIVE',
+  ADVERB: 'ADVERB',
+  PRONOUN: 'PRONOUN',
+  PREPOSITION: 'PREPOSITION',
+  CONJUNCTION: 'CONJUNCTION',
+  INTERJECTION: 'INTERJECTION',
+  DETERMINER: 'DETERMINER',
+  NUMERAL: 'NUMERAL',
+  PHRASE: 'PHRASE',
+  OTHER: 'OTHER',
+} as const
+
+export type PartOfSpeechType = (typeof PART_OF_SPEECH)[keyof typeof PART_OF_SPEECH]

@@ -1,4 +1,4 @@
-import { Level, VocabStatus } from '@/common/constants/vocabulary.constant'
+import { Level, PART_OF_SPEECH, VocabStatus } from '@/common/constants/vocabulary.constant'
 import z from 'zod'
 
 export const VocabularyTopicSchema = z.object({
@@ -42,7 +42,20 @@ export const VocabularySchema = z.object({
   word: z.string(),
   phoneticUk: z.string().nullable(),
   phoneticUs: z.string().nullable(),
-  partOfSpeech: z.string().nullable(),
+  partOfSpeech: z.enum([
+    PART_OF_SPEECH.NOUN,
+    PART_OF_SPEECH.VERB,
+    PART_OF_SPEECH.ADJECTIVE,
+    PART_OF_SPEECH.ADVERB,
+    PART_OF_SPEECH.PRONOUN,
+    PART_OF_SPEECH.PREPOSITION,
+    PART_OF_SPEECH.CONJUNCTION,
+    PART_OF_SPEECH.INTERJECTION,
+    PART_OF_SPEECH.DETERMINER,
+    PART_OF_SPEECH.NUMERAL,
+    PART_OF_SPEECH.PHRASE,
+    PART_OF_SPEECH.OTHER,
+  ]),
   meaningVi: z.string(),
   meaningEn: z.string().nullable(),
   exampleEn: z.string().nullable(),
@@ -59,7 +72,20 @@ export const CreateVocabularyBodySchema = z
     word: z.string().min(1).max(200),
     phoneticUk: z.string().max(200).optional(),
     phoneticUs: z.string().max(200).optional(),
-    partOfSpeech: z.string().max(100).optional(),
+    partOfSpeech: z.enum([
+      PART_OF_SPEECH.NOUN,
+      PART_OF_SPEECH.VERB,
+      PART_OF_SPEECH.ADJECTIVE,
+      PART_OF_SPEECH.ADVERB,
+      PART_OF_SPEECH.PRONOUN,
+      PART_OF_SPEECH.PREPOSITION,
+      PART_OF_SPEECH.CONJUNCTION,
+      PART_OF_SPEECH.INTERJECTION,
+      PART_OF_SPEECH.DETERMINER,
+      PART_OF_SPEECH.NUMERAL,
+      PART_OF_SPEECH.PHRASE,
+      PART_OF_SPEECH.OTHER,
+    ]),
     meaningVi: z.string().min(1),
     meaningEn: z.string().optional(),
     exampleEn: z.string().optional(),
@@ -178,7 +204,20 @@ export const AddNewVocabularyToListBodySchema = z
     meaningEn: z.string().optional(),
     phoneticUk: z.string().max(200).optional(),
     phoneticUs: z.string().max(200).optional(),
-    partOfSpeech: z.string().max(100).optional(),
+    partOfSpeech: z.enum([
+      PART_OF_SPEECH.NOUN,
+      PART_OF_SPEECH.VERB,
+      PART_OF_SPEECH.ADJECTIVE,
+      PART_OF_SPEECH.ADVERB,
+      PART_OF_SPEECH.PRONOUN,
+      PART_OF_SPEECH.PREPOSITION,
+      PART_OF_SPEECH.CONJUNCTION,
+      PART_OF_SPEECH.INTERJECTION,
+      PART_OF_SPEECH.DETERMINER,
+      PART_OF_SPEECH.NUMERAL,
+      PART_OF_SPEECH.PHRASE,
+      PART_OF_SPEECH.OTHER,
+    ]),
     exampleEn: z.string().optional(),
     exampleVi: z.string().optional(),
     level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]),
@@ -261,6 +300,137 @@ export const SearchVocabularyQuerySchema = z
     limit: z.coerce.number().int().min(1).max(50).default(10),
   })
   .strict()
+
+// Query cho GET /admin/words
+export const GetWordsAdminQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    search: z.string().optional(),
+    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    partOfSpeech: z
+      .enum([
+        PART_OF_SPEECH.NOUN,
+        PART_OF_SPEECH.VERB,
+        PART_OF_SPEECH.ADJECTIVE,
+        PART_OF_SPEECH.ADVERB,
+        PART_OF_SPEECH.PRONOUN,
+        PART_OF_SPEECH.PREPOSITION,
+        PART_OF_SPEECH.CONJUNCTION,
+        PART_OF_SPEECH.INTERJECTION,
+        PART_OF_SPEECH.DETERMINER,
+        PART_OF_SPEECH.NUMERAL,
+        PART_OF_SPEECH.PHRASE,
+        PART_OF_SPEECH.OTHER,
+      ])
+      .optional(),
+  })
+  .strict()
+
+// Shape của một word trong response
+export const VocabularyWordAdminSchema = z.object({
+  id: z.string().uuid(),
+  word: z.string(),
+  meaningVi: z.string(),
+  phoneticUk: z.string().nullable(),
+  phoneticUs: z.string().nullable(),
+  partOfSpeech: z.enum([
+    PART_OF_SPEECH.NOUN,
+    PART_OF_SPEECH.VERB,
+    PART_OF_SPEECH.ADJECTIVE,
+    PART_OF_SPEECH.ADVERB,
+    PART_OF_SPEECH.PRONOUN,
+    PART_OF_SPEECH.PREPOSITION,
+    PART_OF_SPEECH.CONJUNCTION,
+    PART_OF_SPEECH.INTERJECTION,
+    PART_OF_SPEECH.DETERMINER,
+    PART_OF_SPEECH.NUMERAL,
+    PART_OF_SPEECH.PHRASE,
+    PART_OF_SPEECH.OTHER,
+  ]),
+  meaningEn: z.string().nullable(),
+  exampleEn: z.string().nullable(),
+  exampleVi: z.string().nullable(),
+  imageUrl: z.string().nullable(),
+  audioUrlUk: z.string().nullable(),
+  audioUrlUs: z.string().nullable(),
+  audioExampleUrl: z.string().nullable(),
+  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).nullable(),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+})
+
+// Stats object (dùng cho cả inline trong GetWordsAdminRes lẫn GET /admin/words/stats)
+export const VocabularyWordsStatsSchema = z.object({
+  total: z.number().int(),
+  hasAudio: z.number().int(),
+  hasImage: z.number().int(),
+  hasIpa: z.number().int(),
+  byLevel: z.object({
+    BEGINNER: z.number().int(),
+    INTERMEDIATE: z.number().int(),
+    ADVANCED: z.number().int(),
+  }),
+  byPartOfSpeech: z.record(z.string(), z.number().int()),
+})
+
+// Response của GET /admin/words
+export const GetWordsAdminResSchema = z.object({
+  data: z.array(VocabularyWordAdminSchema),
+  pagination: z.object({
+    page: z.number().int(),
+    limit: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
+  stats: VocabularyWordsStatsSchema,
+})
+
+// Body của PATCH /admin/words/:id
+export const UpdateVocabularyBodySchema = z
+  .object({
+    word: z.string().min(1).max(200).optional(),
+    phoneticUk: z.string().max(200).nullable().optional(),
+    phoneticUs: z.string().max(200).nullable().optional(),
+    partOfSpeech: z
+      .enum([
+        PART_OF_SPEECH.NOUN,
+        PART_OF_SPEECH.VERB,
+        PART_OF_SPEECH.ADJECTIVE,
+        PART_OF_SPEECH.ADVERB,
+        PART_OF_SPEECH.PRONOUN,
+        PART_OF_SPEECH.PREPOSITION,
+        PART_OF_SPEECH.CONJUNCTION,
+        PART_OF_SPEECH.INTERJECTION,
+        PART_OF_SPEECH.DETERMINER,
+        PART_OF_SPEECH.NUMERAL,
+        PART_OF_SPEECH.PHRASE,
+        PART_OF_SPEECH.OTHER,
+      ])
+      .optional(),
+    meaningVi: z.string().min(1).optional(),
+    meaningEn: z.string().nullable().optional(),
+    exampleEn: z.string().nullable().optional(),
+    exampleVi: z.string().nullable().optional(),
+    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).nullable().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (Object.keys(data).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Phải cung cấp ít nhất một trường để cập nhật',
+        path: [],
+      })
+    }
+  })
+
+// Response của DELETE /admin/words/:id
+export const DeleteVocabularyResSchema = z.object({
+  message: z.string(),
+})
+
+export type GetWordsAdminQueryType = z.infer<typeof GetWordsAdminQuerySchema>
+export type UpdateVocabularyBodyType = z.infer<typeof UpdateVocabularyBodySchema>
 
 export type GetListsQueryType = z.infer<typeof GetListsQuerySchema>
 export type GetListsResType = z.infer<typeof GetListsResSchema>

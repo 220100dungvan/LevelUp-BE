@@ -15,11 +15,14 @@ import {
   AddNewVocabularyToListBodyType,
   AddItemsByIdsBodyType,
   CreateVocabularyTopicBodyType,
+  GetWordsAdminQueryType,
+  UpdateVocabularyBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common'
@@ -27,13 +30,17 @@ import { encryptData } from '@/common/utils/encryption'
 import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { CloudinaryService } from '@/common/services/cloudinary.service'
 import envConfig from '@/common/utils/config'
+import { TextToSpeechService } from '@/common/services/text-to-speech.service'
 
 @Injectable()
 export class VocabularyService {
+  private readonly logger = new Logger(VocabularyService.name)
+
   constructor(
     private readonly vocabularyRepository: VocabularyRepository,
     private readonly userStatRepository: UserStatRepository,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly textToSpeechService: TextToSpeechService,
   ) {}
 
   private async verifyAccess(
@@ -55,6 +62,48 @@ export class VocabularyService {
     if (role === UserRole.ADMIN) return
     if (createdBy === userId) return
     throw new ForbiddenException('Error.ForbiddenAction')
+  }
+
+  /**
+   * Sinh UK + US audio cho từ rồi upload lên Cloudinary.
+   * Trả về { audioUrlUk, audioUrlUs }.
+   * Nếu TTS thất bại, log warning và trả về undefined (không block việc tạo từ).
+   */
+  private async generateAndUploadVocabularyAudio(word: string): Promise<{ audioUrlUk?: string; audioUrlUs?: string }> {
+    try {
+      const { ukBuffer, usBuffer } = await this.textToSpeechService.generateVocabularyAudioBuffers(word)
+
+      const slug = word
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+      const [audioUrlUk, audioUrlUs] = await Promise.all([
+        this.cloudinaryService.uploadAudio(
+          {
+            buffer: ukBuffer,
+            mimetype: 'audio/mpeg',
+            originalname: `vocab_uk_${slug}.mp3`,
+            size: ukBuffer.byteLength,
+          },
+          envConfig.CLOUDINARY_VOCABULARY_AUDIO_FOLDER,
+        ),
+        this.cloudinaryService.uploadAudio(
+          {
+            buffer: usBuffer,
+            mimetype: 'audio/mpeg',
+            originalname: `vocab_us_${slug}.mp3`,
+            size: usBuffer.byteLength,
+          },
+          envConfig.CLOUDINARY_VOCABULARY_AUDIO_FOLDER,
+        ),
+      ])
+
+      return { audioUrlUk, audioUrlUs }
+    } catch (err) {
+      this.logger.warn(`TTS generation failed for word "${word}": ${(err as Error).message}`)
+      return {}
+    }
   }
 
   getTopics() {
@@ -255,12 +304,16 @@ export class VocabularyService {
     // Upload ảnh nếu có
     let imageUrl: string | undefined
     if (image) {
-      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_FOLDER)
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_IMAGE_FOLDER)
     }
+
+    const { audioUrlUk, audioUrlUs } = await this.generateAndUploadVocabularyAudio(body.word)
 
     const vocabulary = await this.vocabularyRepository.createVocabulary({
       ...body,
       imageUrl,
+      audioUrlUk,
+      audioUrlUs,
       createdBy: userId,
     })
 
@@ -295,8 +348,15 @@ export class VocabularyService {
     return { message: 'Sắp xếp lại từ vựng thành công' }
   }
 
-  async createVocabulary(body: CreateVocabularyBodyType, userId: string) {
-    return this.vocabularyRepository.createVocabulary({ ...body, createdBy: userId })
+  async createVocabulary(body: CreateVocabularyBodyType, userId: string, image?: UploadedFileData) {
+    let imageUrl: string | undefined
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_IMAGE_FOLDER)
+    }
+
+    const { audioUrlUk, audioUrlUs } = await this.generateAndUploadVocabularyAudio(body.word)
+
+    return this.vocabularyRepository.createVocabulary({ ...body, createdBy: userId, imageUrl, audioUrlUk, audioUrlUs })
   }
 
   async submitLearningWord(body: SubmitLearningWordBodyType, userId: string) {
@@ -373,5 +433,33 @@ export class VocabularyService {
   async searchVocabularies(query: SearchVocabularyQueryType) {
     const data = await this.vocabularyRepository.searchVocabularies(query)
     return { data }
+  }
+
+  // GET /admin/words — danh sách words + stats
+  async getWordsForAdmin(query: GetWordsAdminQueryType) {
+    return this.vocabularyRepository.findWordsForAdmin({
+      page: query.page ?? 1,
+      limit: query.limit ?? 10,
+      search: query.search,
+      level: query.level,
+      partOfSpeech: query.partOfSpeech,
+    })
+  }
+
+  // PATCH /admin/words/:id — cập nhật thông tin word (text fields)
+  async updateVocabulary(wordId: string, body: UpdateVocabularyBodyType) {
+    const word = await this.vocabularyRepository.findVocabularyById(wordId)
+    if (!word) throw new NotFoundException('Error.VocabularyNotFound')
+
+    return this.vocabularyRepository.updateVocabulary(wordId, body)
+  }
+
+  // DELETE /admin/words/:id — soft delete word
+  async deleteVocabulary(wordId: string) {
+    const word = await this.vocabularyRepository.findVocabularyById(wordId)
+    if (!word) throw new NotFoundException('Error.VocabularyNotFound')
+
+    await this.vocabularyRepository.softDeleteVocabulary(wordId)
+    return { message: 'Xóa từ vựng thành công' }
   }
 }

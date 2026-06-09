@@ -1,5 +1,5 @@
 import { ArticleStatus, QuizQuestionType, VoiceType } from '@/common/constants/article.constant'
-import { Level } from '@/common/constants/vocabulary.constant'
+import { Level, PART_OF_SPEECH } from '@/common/constants/vocabulary.constant'
 import { VocabularySchema } from '@/modules/vocabulary/vocabulary.schema'
 import z from 'zod'
 
@@ -365,7 +365,20 @@ export const CreateArticleVocabularySchema = z
     word: z.string().min(1),
     phoneticUk: z.string().optional(),
     phoneticUs: z.string().optional(),
-    partOfSpeech: z.string().optional(),
+    partOfSpeech: z.enum([
+      PART_OF_SPEECH.NOUN,
+      PART_OF_SPEECH.VERB,
+      PART_OF_SPEECH.ADJECTIVE,
+      PART_OF_SPEECH.ADVERB,
+      PART_OF_SPEECH.PRONOUN,
+      PART_OF_SPEECH.PREPOSITION,
+      PART_OF_SPEECH.CONJUNCTION,
+      PART_OF_SPEECH.INTERJECTION,
+      PART_OF_SPEECH.DETERMINER,
+      PART_OF_SPEECH.NUMERAL,
+      PART_OF_SPEECH.PHRASE,
+      PART_OF_SPEECH.OTHER,
+    ]),
     meaningVi: z.string().min(1),
     meaningEn: z.string().optional(),
     exampleEn: z.string().optional(),
