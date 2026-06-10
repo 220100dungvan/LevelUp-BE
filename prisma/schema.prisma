@@ -107,12 +107,21 @@ enum PartOfSpeech {
   OTHER
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 model User {
   id          String     @id @default(uuid()) @db.Uuid
   email       String     @unique
   password    String
   fullName    String?    @map("full_name")
   phoneNumber String?    @map("phone_number")
+
+  dateOfBirth DateTime? @map("date_of_birth")
+  gender      Gender?     @map("gender")
   avatarUrl   String?    @map("avatar_url")
   totpSecret  String?    @map("totp_secret")
   totpEnabled Boolean    @default(false)
