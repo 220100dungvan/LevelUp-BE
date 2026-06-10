@@ -724,6 +724,69 @@ export class VocabularyRepository {
     })
   }
 
+  async findListsByOwner(userId: string, query: GetListsQueryType) {
+    const { topicId, level, page, limit, search } = query
+
+    const where = {
+      deletedAt: null,
+      createdBy: userId,
+      topicId,
+      level,
+      name: search?.trim() ? { contains: search.trim(), mode: 'insensitive' as const } : undefined,
+    }
+
+    const [lists, total] = await Promise.all([
+      this.prismaService.vocabularyList.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          topic: {
+            select: {
+              id: true,
+              name: true,
+              thumbnailUrl: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+          _count: {
+            select: { items: true },
+          },
+        },
+      }),
+      this.prismaService.vocabularyList.count({ where }),
+    ])
+
+    const data = lists.map((list) => ({
+      id: list.id,
+      name: list.name,
+      description: list.description,
+      level: list.level,
+      isPublic: list.isPublic,
+      createdAt: list.createdAt,
+      totalWords: list._count.items,
+      topic: list.topic,
+      creator: list.creator,
+    }))
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  }
+
   private buildStartDate(days: number): Date {
     const startDate = new Date()
     startDate.setUTCHours(0, 0, 0, 0)

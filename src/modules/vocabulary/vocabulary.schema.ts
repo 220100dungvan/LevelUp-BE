@@ -429,6 +429,36 @@ export const DeleteVocabularyResSchema = z.object({
   message: z.string(),
 })
 
+export const CreateLearnerListBodySchema = z
+  .object({
+    topicId: z.string().uuid(),
+    name: z.string().min(1).max(200),
+    description: z.string().optional(),
+    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+  })
+  .strict()
+
+export const UpdateLearnerListBodySchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    description: z.string().optional(),
+    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    topicId: z.string().uuid().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (Object.keys(data).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Phải cung cấp ít nhất một trường để cập nhật',
+        path: [],
+      })
+    }
+  })
+
+export type UpdateLearnerListBodyType = z.infer<typeof UpdateLearnerListBodySchema>
+export type CreateLearnerListBodyType = z.infer<typeof CreateLearnerListBodySchema>
+
 export type GetWordsAdminQueryType = z.infer<typeof GetWordsAdminQuerySchema>
 export type UpdateVocabularyBodyType = z.infer<typeof UpdateVocabularyBodySchema>
 

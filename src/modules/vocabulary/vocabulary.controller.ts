@@ -30,6 +30,8 @@ import {
   GetWordsAdminQueryDTO,
   UpdateVocabularyBodyDTO,
   DeleteVocabularyResDTO,
+  CreateLearnerListBodyDTO,
+  UpdateLearnerListBodyDTO,
 } from '@/modules/vocabulary/vocabulary.dto'
 import { VocabularyService } from '@/modules/vocabulary/vocabulary.service'
 import {
@@ -255,5 +257,74 @@ export class VocabularyController {
   @ZodResponse({ type: DeleteVocabularyResDTO })
   deleteVocabulary(@Param('id') id: string) {
     return this.vocabularyService.deleteVocabulary(id)
+  }
+
+  @Get('me/lists')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: GetListsResDTO })
+  getMyLists(@Query() query: GetListsQueryDTO, @ActiveUser('userId') userId: string) {
+    return this.vocabularyService.getMyLists(userId, query)
+  }
+
+  @Post('me/lists')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: CreateVocabularyListResDTO })
+  createMyList(@Body() body: CreateLearnerListBodyDTO, @ActiveUser('userId') userId: string) {
+    return this.vocabularyService.createMyList(body, userId)
+  }
+
+  @Patch('me/lists/:id')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: CreateVocabularyListResDTO })
+  updateMyList(
+    @Param('id') listId: string,
+    @Body() body: UpdateLearnerListBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.vocabularyService.updateMyList(listId, body, userId)
+  }
+
+  @Delete('me/lists/:id')
+  @Roles(UserRole.LEARNER)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: DeleteVocabularyListResDTO })
+  deleteMyList(@Param('id') listId: string, @ActiveUser('userId') userId: string) {
+    return this.vocabularyService.deleteMyList(listId, userId)
+  }
+
+  @Post('me/lists/:id/items')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: AddItemsToListResDTO })
+  addItemsToMyList(
+    @Param('id') listId: string,
+    @Body() body: AddItemsByIdsBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.vocabularyService.addItemsToMyList(listId, body, userId)
+  }
+
+  @Post('me/lists/:id/items/new')
+  @Roles(UserRole.LEARNER)
+  @UseInterceptors(FileInterceptor('image'))
+  @ZodResponse({ type: AddItemsToListResDTO })
+  addNewVocabularyToMyList(
+    @Param('id') listId: string,
+    @Body() body: AddNewVocabularyToListBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
+  ) {
+    return this.vocabularyService.addNewVocabularyToMyList({ listId, body, userId, image })
+  }
+
+  @Delete('me/lists/:id/items/:vocabularyId')
+  @Roles(UserRole.LEARNER)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: MessageResDTO })
+  removeItemFromMyList(
+    @Param('id') listId: string,
+    @Param('vocabularyId') vocabularyId: string,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.vocabularyService.removeItemFromMyList(listId, vocabularyId, userId)
   }
 }
