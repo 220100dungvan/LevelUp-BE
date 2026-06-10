@@ -31,6 +31,7 @@ import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 import { CloudinaryService } from '@/common/services/cloudinary.service'
 import envConfig from '@/common/utils/config'
 import { TextToSpeechService } from '@/common/services/text-to-speech.service'
+import { VocabularyIndexService } from '@/modules/vocabulary/vocabulary-index.service'
 
 @Injectable()
 export class VocabularyService {
@@ -41,6 +42,7 @@ export class VocabularyService {
     private readonly userStatRepository: UserStatRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly textToSpeechService: TextToSpeechService,
+    private readonly vocabularyIndexService: VocabularyIndexService,
   ) {}
 
   private async verifyAccess(
@@ -281,26 +283,24 @@ export class VocabularyService {
     return { added: newIds.length, skipped: body.vocabularyIds.length - newIds.length }
   }
 
-  async addNewVocabularyToList(
-    listId: string,
-    body: AddNewVocabularyToListBodyType,
-    image: UploadedFileData,
-    userId: string,
-    role: string,
-  ) {
+  async addNewVocabularyToList({
+    listId,
+    body,
+    image,
+    userId,
+    role,
+  }: {
+    listId: string
+    body: AddNewVocabularyToListBodyType
+    image?: UploadedFileData
+    userId: string
+    role: string
+  }) {
     const list = await this.vocabularyRepository.findListById(listId)
     if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
 
     this.verifyOwnerOrAdmin(list.createdBy, userId, role)
 
-    if (!image) {
-      throw new UnprocessableEntityException([
-        {
-          path: 'image',
-          message: 'Error.ImageIsRequired',
-        },
-      ])
-    }
     // Upload ảnh nếu có
     let imageUrl: string | undefined
     if (image) {
@@ -316,6 +316,9 @@ export class VocabularyService {
       audioUrlUs,
       createdBy: userId,
     })
+
+    // Sync to Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.indexVocabulary({ ...vocabulary, deletedAt: null }).catch(() => {})
 
     const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
     await this.vocabularyRepository.addItemsToList([{ listId, vocabularyId: vocabulary.id, orderIndex: maxIndex + 1 }])
@@ -356,7 +359,18 @@ export class VocabularyService {
 
     const { audioUrlUk, audioUrlUs } = await this.generateAndUploadVocabularyAudio(body.word)
 
-    return this.vocabularyRepository.createVocabulary({ ...body, createdBy: userId, imageUrl, audioUrlUk, audioUrlUs })
+    const vocabulary = await this.vocabularyRepository.createVocabulary({
+      ...body,
+      createdBy: userId,
+      imageUrl,
+      audioUrlUk,
+      audioUrlUs,
+    })
+
+    // Sync to Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.indexVocabulary({ ...vocabulary, deletedAt: null }).catch(() => {})
+
+    return vocabulary
   }
 
   async submitLearningWord(body: SubmitLearningWordBodyType, userId: string) {
@@ -430,8 +444,39 @@ export class VocabularyService {
     }
   }
 
+  /**
+   * Search vocabularies.
+   * Strategy: try Elasticsearch first (fast, fuzzy, typo-tolerant).
+   * Falls back to Prisma ILIKE query when ES is unavailable.
+   */
   async searchVocabularies(query: SearchVocabularyQueryType) {
+    const esResults = await this.vocabularyIndexService.search(query)
+
+    if (esResults !== null) {
+      // ES hit — map to the same shape as Prisma results
+      const data = esResults.map((doc) => ({
+        id: doc.id,
+        word: doc.word,
+        phoneticUk: doc.phoneticUk,
+        phoneticUs: doc.phoneticUs,
+        partOfSpeech: doc.partOfSpeech,
+        meaningVi: doc.meaningVi,
+        meaningEn: doc.meaningEn,
+        exampleEn: doc.exampleEn,
+        exampleVi: doc.exampleVi,
+        imageUrl: doc.imageUrl,
+        audioUrlUk: doc.audioUrlUk,
+        audioUrlUs: doc.audioUrlUs,
+        audioExampleUrl: doc.audioExampleUrl,
+        level: doc.level,
+      }))
+      return { data }
+    }
+
+    // Fallback to Prisma
+    this.logger.warn('Elasticsearch unavailable — falling back to Prisma for search')
     const data = await this.vocabularyRepository.searchVocabularies(query)
+
     return { data }
   }
 
@@ -460,6 +505,10 @@ export class VocabularyService {
     if (!word) throw new NotFoundException('Error.VocabularyNotFound')
 
     await this.vocabularyRepository.softDeleteVocabulary(wordId)
+
+    // Soft delete in Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.deleteVocabulary(wordId).catch(() => {})
+
     return { message: 'Xóa từ vựng thành công' }
   }
 }

@@ -173,13 +173,13 @@ export class VocabularyController {
   @UseInterceptors(FileInterceptor('image'))
   @ZodResponse({ type: AddItemsToListResDTO })
   addNewVocabularyToList(
-    @Param('id') id: string,
+    @Param('id') listId: string,
     @Body() body: AddNewVocabularyToListBodyDTO,
     @ActiveUser('userId') userId: string,
     @ActiveUser('role') role: RoleNameType,
-    @UploadedFile(optionalImageFileValidationPipe) image: UploadedFileData,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
   ) {
-    return this.vocabularyService.addNewVocabularyToList(id, body, image, userId, role)
+    return this.vocabularyService.addNewVocabularyToList({ listId, body, userId, role, image })
   }
 
   // Xóa một từ khỏi list

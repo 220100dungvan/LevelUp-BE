@@ -31,6 +31,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: ${ELASTICSEARCH_CONTAINER_NAME:-elasticsearch}
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false  # dùng HTTP thay vì HTTPS cho dev
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m        # giới hạn RAM, tăng lên nếu cần
+    ports:
+      - '${ELASTICSEARCH_PORT:-9200}:9200'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -s -u elastic:${ELASTICSEARCH_PASSWORD} http://localhost:9200/_cluster/health | grep -q "\"status\":\"green\"\|\"status\":\"yellow\""']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s  # ES khởi động chậm, cần chờ
 
   app:
     build:
@@ -43,12 +64,16 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL_DOCKER}
       PORT: ${PORT}
+      ELASTICSEARCH_URL: http://elasticsearch:9200   # dùng tên service thay vì localhost
     ports:
       - '${APP_PORT:-3000}:3000'
     depends_on:
       postgres:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   redis_data:
+  elasticsearch_data:

@@ -17,6 +17,7 @@ import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import { FirebaseAdminService } from '@/common/services/firebase-admin.service'
 import { AppCheckGuard } from '@/common/guards/app-check.guard'
 import { TextToSpeechService } from '@/common/services/text-to-speech.service'
+import { ElasticsearchService } from '@/common/services/elasticsearch.service'
 
 const sharedServices = [
   FirebaseAdminService,
@@ -28,6 +29,7 @@ const sharedServices = [
   SpeechToTextService,
   TextToSpeechService,
   UserStatRepository,
+  ElasticsearchService,
 ]
 
 @Global()

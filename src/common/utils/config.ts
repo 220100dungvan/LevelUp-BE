@@ -73,6 +73,10 @@ const configSchema = z.object({
   URBAN_DICTIONARY_API_ENDPOINT: z.string(),
   FREE_DICTIONARY_API_ENDPOINT: z.string(),
   DICTIONARY_API_ENDPOINT: z.string(),
+
+  ELASTICSEARCH_URL: z.string(),
+  ELASTICSEARCH_USERNAME: z.string(),
+  ELASTICSEARCH_PASSWORD: z.string(),
 })
 
 const configServer = configSchema.safeParse(process.env)
