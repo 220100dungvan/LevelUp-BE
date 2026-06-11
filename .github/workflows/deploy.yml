@@ -17,6 +17,9 @@ jobs:
           script: |
             cd /home/dung/levelup/backend
             git pull origin main
-            docker compose build nestjs
-            docker compose up -d nestjs
-            docker compose exec nestjs npx prisma migrate deploy
+            cd /home/dung/levelup/ai-service
+            git pull origin main
+            cd /home/dung/levelup/backend
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml exec -T app npx prisma migrate deploy
