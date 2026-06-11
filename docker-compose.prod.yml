@@ -72,7 +72,12 @@ services:
     container_name: ${APP_CONTAINER_NAME}
     restart: unless-stopped
     env_file:
-      - ./.env.production:/app/.env.production:ro
+      - .env.production
+    volumes:
+      - type: bind
+        source: ./.env.production
+        target: /app/.env.production
+        read_only: true
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL_DOCKER}
