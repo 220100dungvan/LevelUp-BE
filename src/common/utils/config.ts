@@ -3,8 +3,10 @@ import path from 'path'
 import config from 'dotenv'
 import z from 'zod'
 
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
+
 config.config({
-  path: '.env',
+  path: envFile,
 })
 
 if (!fs.existsSync(path.resolve('.env'))) {
