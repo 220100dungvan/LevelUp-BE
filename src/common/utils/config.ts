@@ -9,8 +9,8 @@ config.config({
   path: envFile,
 })
 
-if (!fs.existsSync(path.resolve('.env'))) {
-  console.log('Không tìm thấy file .env')
+if (!fs.existsSync(path.resolve(envFile))) {
+  console.log(`Không tìm thấy file ${envFile}`)
   process.exit(1)
 }
 
