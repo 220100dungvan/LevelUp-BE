@@ -6,8 +6,11 @@ import {
   GetLearningProgressOverviewQueryType,
   GetListsQueryType,
   UpdateVocabularyListBodyType,
-  CreateTopicBodyType,
-  UpdateTopicBodyType,
+  UpdateVocabularyTopicBodyType,
+  SearchVocabularyQueryType,
+  CreateVocabularyTopicBodyType,
+  UpdateVocabularyBodyType,
+  GetWordsAdminQueryType,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { Injectable } from '@nestjs/common'
 import { startOfDay } from 'date-fns'
@@ -30,20 +33,23 @@ export class VocabularyRepository {
     })
   }
 
-  createTopic(payload: CreateTopicBodyType) {
+  createTopic(payload: CreateVocabularyTopicBodyType, thumbnailUrl: string) {
     return this.prismaService.vocabularyTopic.create({
       data: {
         name: payload.name,
         description: payload.description,
-        thumbnailUrl: payload.thumbnailUrl,
+        thumbnailUrl,
       },
     })
   }
 
-  updateTopic(id: string, data: UpdateTopicBodyType) {
+  updateTopic(id: string, data: UpdateVocabularyTopicBodyType, thumbnailUrl?: string) {
     return this.prismaService.vocabularyTopic.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      },
     })
   }
 
@@ -54,7 +60,196 @@ export class VocabularyRepository {
     })
   }
 
+  // Lấy danh sách words cho admin + stats trong một lần gọi
+  async findWordsForAdmin(query: GetWordsAdminQueryType) {
+    const { page, limit, search, level, partOfSpeech } = query
+
+    const where = {
+      deletedAt: null,
+      ...(level ? { level } : {}),
+      ...(partOfSpeech ? { partOfSpeech } : {}),
+      ...(search?.trim()
+        ? {
+            OR: [
+              { word: { contains: search.trim(), mode: 'insensitive' as const } },
+              { meaningVi: { contains: search.trim(), mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    }
+
+    // Chạy song song: list page + total + stats aggregation
+    const [words, total, statsRaw] = await Promise.all([
+      this.prismaService.vocabulary.findMany({
+        where,
+        orderBy: { word: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          word: true,
+          meaningVi: true,
+          phoneticUk: true,
+          phoneticUs: true,
+          partOfSpeech: true,
+          meaningEn: true,
+          exampleEn: true,
+          exampleVi: true,
+          imageUrl: true,
+          audioUrlUk: true,
+          audioUrlUs: true,
+          audioExampleUrl: true,
+          level: true,
+          createdAt: true,
+        },
+      }),
+      this.prismaService.vocabulary.count({ where }),
+      // Stats luôn dựa trên TOÀN BỘ bảng (không filter) để stat cards không thay đổi khi search
+      this.getWordsStats(),
+    ])
+
+    return {
+      data: words,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      stats: statsRaw,
+    }
+  }
+
+  // Tính stats cho Vocabulary Words dashboard
+  async getWordsStats() {
+    const baseWhere = { deletedAt: null }
+
+    const [total, hasAudio, hasImage, hasIpa, byLevelRaw, byPosRaw] = await Promise.all([
+      // Tổng words
+      this.prismaService.vocabulary.count({ where: baseWhere }),
+
+      // Có ít nhất 1 audio (uk hoặc us)
+      this.prismaService.vocabulary.count({
+        where: { ...baseWhere, OR: [{ audioUrlUk: { not: null } }, { audioUrlUs: { not: null } }] },
+      }),
+
+      // Có ảnh
+      this.prismaService.vocabulary.count({
+        where: { ...baseWhere, imageUrl: { not: null } },
+      }),
+
+      // Có IPA (uk hoặc us)
+      this.prismaService.vocabulary.count({
+        where: { ...baseWhere, OR: [{ phoneticUk: { not: null } }, { phoneticUs: { not: null } }] },
+      }),
+
+      // Đếm theo level — groupBy trả về array [{ level, _count }]
+      this.prismaService.vocabulary.groupBy({
+        by: ['level'],
+        where: { ...baseWhere, level: { not: null } },
+        _count: { _all: true },
+      }),
+
+      // Đếm theo partOfSpeech
+      this.prismaService.vocabulary.groupBy({
+        by: ['partOfSpeech'],
+        where: baseWhere,
+        _count: { _all: true },
+        orderBy: { _count: { partOfSpeech: 'desc' } },
+      }),
+    ])
+
+    // Normalize byLevel thành object cố định
+    const byLevel = { BEGINNER: 0, INTERMEDIATE: 0, ADVANCED: 0 }
+    for (const row of byLevelRaw) {
+      if (row.level) byLevel[row.level as keyof typeof byLevel] = row._count._all
+    }
+
+    const byPartOfSpeech = Object.fromEntries(byPosRaw.map((row) => [row.partOfSpeech.toLowerCase(), row._count._all]))
+
+    return { total, hasAudio, hasImage, hasIpa, byLevel, byPartOfSpeech }
+  }
+
+  // Cập nhật thông tin word (không bao gồm image — dùng endpoint riêng)
+  async updateVocabulary(id: string, data: UpdateVocabularyBodyType) {
+    return this.prismaService.vocabulary.update({
+      where: { id },
+      data,
+    })
+  }
+
+  // Soft delete word — sẽ không xóa khỏi list items (tùy chính sách)
+  async softDeleteVocabulary(id: string) {
+    return this.prismaService.vocabulary.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    })
+  }
+
   async findLists(query: GetListsQueryType) {
+    const { topicId, level, page, limit, search } = query
+
+    const where = {
+      deletedAt: null,
+      topicId,
+      isPublic: true,
+      level,
+      name: search?.trim() ? { contains: search.trim(), mode: 'insensitive' as const } : undefined,
+    }
+
+    const [lists, total] = await Promise.all([
+      this.prismaService.vocabularyList.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          topic: {
+            select: {
+              id: true,
+              name: true,
+              thumbnailUrl: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+          _count: {
+            select: { items: true },
+          },
+        },
+      }),
+      this.prismaService.vocabularyList.count({ where }),
+    ])
+
+    const data = lists.map((list) => ({
+      id: list.id,
+      name: list.name,
+      description: list.description,
+      level: list.level,
+      isPublic: list.isPublic,
+      createdAt: list.createdAt,
+      totalWords: list._count.items,
+      topic: list.topic,
+      creator: list.creator,
+    }))
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  }
+
+  async findListsForAdmin(query: GetListsQueryType) {
     const { topicId, level, page, limit, search } = query
 
     const where = {
@@ -206,7 +401,14 @@ export class VocabularyRepository {
     })
   }
 
-  createVocabulary(payload: CreateVocabularyBodyType & { createdBy: string }) {
+  createVocabulary(
+    payload: CreateVocabularyBodyType & {
+      createdBy: string
+      imageUrl?: string
+      audioUrlUk?: string
+      audioUrlUs?: string
+    },
+  ) {
     return this.prismaService.vocabulary.create({
       data: {
         word: payload.word,
@@ -220,7 +422,6 @@ export class VocabularyRepository {
         imageUrl: payload.imageUrl,
         audioUrlUk: payload.audioUrlUk,
         audioUrlUs: payload.audioUrlUs,
-        audioExampleUrl: payload.audioExampleUrl,
         level: payload.level,
         createdBy: payload.createdBy,
       },
@@ -493,6 +694,96 @@ export class VocabularyRepository {
         wrongCount: row._sum.wrongCount ?? 0,
         totalActivity: (row._sum.wordsLearned ?? 0) + (row._sum.wordsReviewed ?? 0),
       })),
+    }
+  }
+
+  searchVocabularies(query: SearchVocabularyQueryType) {
+    return this.prismaService.vocabulary.findMany({
+      where: {
+        deletedAt: null,
+        word: { contains: query.word.trim(), mode: 'insensitive' },
+      },
+      orderBy: { word: 'asc' },
+      take: query.limit,
+      select: {
+        id: true,
+        word: true,
+        phoneticUk: true,
+        phoneticUs: true,
+        partOfSpeech: true,
+        meaningVi: true,
+        meaningEn: true,
+        exampleEn: true,
+        exampleVi: true,
+        imageUrl: true,
+        audioUrlUk: true,
+        audioUrlUs: true,
+        audioExampleUrl: true,
+        level: true,
+      },
+    })
+  }
+
+  async findListsByOwner(userId: string, query: GetListsQueryType) {
+    const { topicId, level, page, limit, search } = query
+
+    const where = {
+      deletedAt: null,
+      createdBy: userId,
+      topicId,
+      level,
+      name: search?.trim() ? { contains: search.trim(), mode: 'insensitive' as const } : undefined,
+    }
+
+    const [lists, total] = await Promise.all([
+      this.prismaService.vocabularyList.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          topic: {
+            select: {
+              id: true,
+              name: true,
+              thumbnailUrl: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+          _count: {
+            select: { items: true },
+          },
+        },
+      }),
+      this.prismaService.vocabularyList.count({ where }),
+    ])
+
+    const data = lists.map((list) => ({
+      id: list.id,
+      name: list.name,
+      description: list.description,
+      level: list.level,
+      isPublic: list.isPublic,
+      createdAt: list.createdAt,
+      totalWords: list._count.items,
+      topic: list.topic,
+      creator: list.creator,
+    }))
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     }
   }
 

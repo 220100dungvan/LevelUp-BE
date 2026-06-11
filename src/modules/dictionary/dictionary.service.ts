@@ -7,12 +7,19 @@ import {
   GiphyResponseType,
   UrbanDictionaryResponseType,
 } from '@/modules/dictionary/interfaces/dictionary.type'
+import { VocabularyIndexService } from '@/modules/vocabulary/vocabulary-index.service'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import type { Cache } from 'cache-manager'
+
 @Injectable()
 export class DictionaryService {
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  private readonly logger = new Logger(DictionaryService.name)
+
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly vocabularyIndexService: VocabularyIndexService,
+  ) {}
 
   async lookup(word: string): Promise<DictionaryLookupResType> {
     const normalizedWord = word.toLowerCase().trim()
@@ -29,6 +36,34 @@ export class DictionaryService {
     ])
 
     const free = freeDictResponse.status === 'fulfilled' ? freeDictResponse.value : null
+
+    // Elasticsearch fallback
+    // When the external free-dictionary API returns no meaningful data,
+    // look up the word in our own vocabulary index in Elasticsearch.
+    let meanings = free?.meanings ?? []
+    const relatedWords = free?.relatedWords ?? { synonyms: [], antonyms: [] }
+
+    if (!meanings.length) {
+      const esDoc = await this.vocabularyIndexService.lookupWord(normalizedWord)
+      if (esDoc) {
+        this.logger.debug(`Dictionary fallback: found "${esDoc.word}" in Elasticsearch`)
+
+        // Build a single meaning entry from our vocabulary document
+        meanings = [
+          {
+            partOfSpeech: esDoc.partOfSpeech ?? 'unknown',
+            definitions: [
+              {
+                definition: esDoc.meaningEn ?? esDoc.meaningVi,
+                example: esDoc.exampleEn ?? undefined,
+                synonyms: [],
+                antonyms: [],
+              },
+            ],
+          },
+        ]
+      }
+    }
 
     const result = {
       word: free?.word ?? word,
@@ -48,8 +83,8 @@ export class DictionaryService {
               phonetic_uk: { text: '', audio: '' },
               phonetic_us: { text: '', audio: '' },
             },
-      meanings: free?.meanings ?? [],
-      relatedWords: free?.relatedWords ?? { synonyms: [], antonyms: [] },
+      meanings,
+      relatedWords,
       images: giphyResponse.status === 'fulfilled' ? giphyResponse.value : [],
       slangs: slangsResponse.status === 'fulfilled' ? slangsResponse.value : [],
     } as unknown as DictionaryLookupResType

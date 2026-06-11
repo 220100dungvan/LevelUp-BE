@@ -3,7 +3,6 @@ import { isDataValidationPrismaError, isNotFoundPrismaError } from '@/common/uti
 import { VocabularyRepository } from '@/modules/vocabulary/vocabulary.repo'
 import { UserStatRepository } from '@/common/repositories/user-stat.repo'
 import {
-  AddItemsToListBodyType,
   CreateVocabularyBodyType,
   CreateVocabularyListBodyType,
   GetLearningProgressOverviewQueryType,
@@ -11,17 +10,41 @@ import {
   ReorderItemsBodyType,
   SubmitLearningWordBodyType,
   UpdateVocabularyListBodyType,
-  CreateTopicBodyType,
-  UpdateTopicBodyType,
+  UpdateVocabularyTopicBodyType,
+  SearchVocabularyQueryType,
+  AddNewVocabularyToListBodyType,
+  AddItemsByIdsBodyType,
+  CreateVocabularyTopicBodyType,
+  GetWordsAdminQueryType,
+  UpdateVocabularyBodyType,
+  CreateLearnerListBodyType,
+  UpdateLearnerListBodyType,
 } from '@/modules/vocabulary/vocabulary.schema'
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common'
 import { encryptData } from '@/common/utils/encryption'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
+import { CloudinaryService } from '@/common/services/cloudinary.service'
+import envConfig from '@/common/utils/config'
+import { TextToSpeechService } from '@/common/services/text-to-speech.service'
+import { VocabularyIndexService } from '@/modules/vocabulary/vocabulary-index.service'
 
 @Injectable()
 export class VocabularyService {
+  private readonly logger = new Logger(VocabularyService.name)
+
   constructor(
     private readonly vocabularyRepository: VocabularyRepository,
     private readonly userStatRepository: UserStatRepository,
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly textToSpeechService: TextToSpeechService,
+    private readonly vocabularyIndexService: VocabularyIndexService,
   ) {}
 
   private async verifyAccess(
@@ -45,6 +68,54 @@ export class VocabularyService {
     throw new ForbiddenException('Error.ForbiddenAction')
   }
 
+  /**
+   * Sinh UK + US audio cho từ rồi upload lên Cloudinary.
+   * Trả về { audioUrlUk, audioUrlUs }.
+   * Nếu TTS thất bại, log warning và trả về undefined (không block việc tạo từ).
+   */
+  private async generateAndUploadVocabularyAudio(word: string): Promise<{ audioUrlUk?: string; audioUrlUs?: string }> {
+    try {
+      const { ukBuffer, usBuffer } = await this.textToSpeechService.generateVocabularyAudioBuffers(word)
+
+      const slug = word
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+      const [audioUrlUk, audioUrlUs] = await Promise.all([
+        this.cloudinaryService.uploadAudio(
+          {
+            buffer: ukBuffer,
+            mimetype: 'audio/mpeg',
+            originalname: `vocab_uk_${slug}.mp3`,
+            size: ukBuffer.byteLength,
+          },
+          envConfig.CLOUDINARY_VOCABULARY_AUDIO_FOLDER,
+        ),
+        this.cloudinaryService.uploadAudio(
+          {
+            buffer: usBuffer,
+            mimetype: 'audio/mpeg',
+            originalname: `vocab_us_${slug}.mp3`,
+            size: usBuffer.byteLength,
+          },
+          envConfig.CLOUDINARY_VOCABULARY_AUDIO_FOLDER,
+        ),
+      ])
+
+      return { audioUrlUk, audioUrlUs }
+    } catch (err) {
+      this.logger.warn(`TTS generation failed for word "${word}": ${(err as Error).message}`)
+      return {}
+    }
+  }
+
+  private verifyOwner(createdBy: string, userId: string): void {
+    if (createdBy !== userId) {
+      throw new ForbiddenException('Error.ForbiddenAction')
+    }
+  }
+
   getTopics() {
     return this.vocabularyRepository.findAllTopics()
   }
@@ -57,16 +128,33 @@ export class VocabularyService {
     return topic
   }
 
-  async createTopic(body: CreateTopicBodyType) {
-    return this.vocabularyRepository.createTopic(body)
+  async createTopic(body: CreateVocabularyTopicBodyType, thumbnail: UploadedFileData) {
+    if (!thumbnail) {
+      throw new UnprocessableEntityException([
+        {
+          path: 'thumbnail',
+          message: 'Error.ThumbnailIsRequired',
+        },
+      ])
+    }
+    const thumbnailUrl = await this.cloudinaryService.uploadImage(
+      thumbnail,
+      envConfig.CLOUDINARY_VOCABULARY_TOPIC_FOLDER,
+    )
+    return this.vocabularyRepository.createTopic(body, thumbnailUrl)
   }
 
-  async updateTopic(topicId: string, body: UpdateTopicBodyType) {
+  async updateTopic(topicId: string, body: UpdateVocabularyTopicBodyType, thumbnail?: UploadedFileData) {
     const topic = await this.vocabularyRepository.findTopicById(topicId)
     if (!topic) {
       throw new NotFoundException('Error.VocabularyTopicNotFound')
     }
-    return this.vocabularyRepository.updateTopic(topicId, body)
+
+    const thumbnailUrl = thumbnail
+      ? await this.cloudinaryService.uploadImage(thumbnail, envConfig.CLOUDINARY_VOCABULARY_TOPIC_FOLDER)
+      : undefined
+
+    return this.vocabularyRepository.updateTopic(topicId, body, thumbnailUrl)
   }
 
   async deleteTopic(topicId: string) {
@@ -80,6 +168,13 @@ export class VocabularyService {
 
   getLists(query: GetListsQueryType) {
     return this.vocabularyRepository.findLists({
+      ...query,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
+    })
+  }
+  getListsForAdmin(query: GetListsQueryType) {
+    return this.vocabularyRepository.findListsForAdmin({
       ...query,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
@@ -171,34 +266,21 @@ export class VocabularyService {
     return { message: 'Xóa danh sách từ vựng thành công' }
   }
 
-  async addItemsToList(listId: string, body: AddItemsToListBodyType, userId: string, role: string) {
+  async addItemsByIds(listId: string, body: AddItemsByIdsBodyType, userId: string, role: string) {
     const list = await this.vocabularyRepository.findListById(listId)
     if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
 
     this.verifyOwnerOrAdmin(list.createdBy, userId, role)
 
-    const allVocabIds: string[] = [...(body.vocabularyIds ?? [])]
-
-    // Tạo các từ mới nếu có
-    if (body.newVocabularies?.length) {
-      const created = await Promise.all(
-        body.newVocabularies.map((v) => this.vocabularyRepository.createVocabulary({ ...v, createdBy: userId })),
-      )
-      allVocabIds.push(...created.map((v) => v.id))
-    }
-
-    // Tìm từ đã có trong list để skip
-    const existing = await this.vocabularyRepository.findExistingListItems(listId, allVocabIds)
+    const existing = await this.vocabularyRepository.findExistingListItems(listId, body.vocabularyIds)
     const existingIds = new Set(existing.map((e) => e.vocabularyId))
-    const newIds = allVocabIds.filter((id) => !existingIds.has(id))
+    const newIds = body.vocabularyIds.filter((id) => !existingIds.has(id))
 
     if (newIds.length === 0) {
-      return { added: 0, skipped: allVocabIds.length }
+      return { added: 0, skipped: body.vocabularyIds.length }
     }
 
-    // Lấy orderIndex hiện tại lớn nhất
     const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
-
     const items = newIds.map((vocabularyId, i) => ({
       listId,
       vocabularyId,
@@ -206,11 +288,50 @@ export class VocabularyService {
     }))
 
     await this.vocabularyRepository.addItemsToList(items)
+    return { added: newIds.length, skipped: body.vocabularyIds.length - newIds.length }
+  }
 
-    return {
-      added: newIds.length,
-      skipped: allVocabIds.length - newIds.length,
+  async addNewVocabularyToList({
+    listId,
+    body,
+    image,
+    userId,
+    role,
+  }: {
+    listId: string
+    body: AddNewVocabularyToListBodyType
+    image?: UploadedFileData
+    userId: string
+    role: string
+  }) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwnerOrAdmin(list.createdBy, userId, role)
+
+    // Upload ảnh nếu có
+    let imageUrl: string | undefined
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_IMAGE_FOLDER)
     }
+
+    const { audioUrlUk, audioUrlUs } = await this.generateAndUploadVocabularyAudio(body.word)
+
+    const vocabulary = await this.vocabularyRepository.createVocabulary({
+      ...body,
+      imageUrl,
+      audioUrlUk,
+      audioUrlUs,
+      createdBy: userId,
+    })
+
+    // Sync to Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.indexVocabulary({ ...vocabulary, deletedAt: null }).catch(() => {})
+
+    const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
+    await this.vocabularyRepository.addItemsToList([{ listId, vocabularyId: vocabulary.id, orderIndex: maxIndex + 1 }])
+
+    return { added: 1, skipped: 0 }
   }
 
   async removeItemFromList(listId: string, vocabularyId: string, userId: string, role: string) {
@@ -238,8 +359,26 @@ export class VocabularyService {
     return { message: 'Sắp xếp lại từ vựng thành công' }
   }
 
-  async createVocabulary(body: CreateVocabularyBodyType, userId: string) {
-    return this.vocabularyRepository.createVocabulary({ ...body, createdBy: userId })
+  async createVocabulary(body: CreateVocabularyBodyType, userId: string, image?: UploadedFileData) {
+    let imageUrl: string | undefined
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_IMAGE_FOLDER)
+    }
+
+    const { audioUrlUk, audioUrlUs } = await this.generateAndUploadVocabularyAudio(body.word)
+
+    const vocabulary = await this.vocabularyRepository.createVocabulary({
+      ...body,
+      createdBy: userId,
+      imageUrl,
+      audioUrlUk,
+      audioUrlUs,
+    })
+
+    // Sync to Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.indexVocabulary({ ...vocabulary, deletedAt: null }).catch(() => {})
+
+    return vocabulary
   }
 
   async submitLearningWord(body: SubmitLearningWordBodyType, userId: string) {
@@ -311,5 +450,190 @@ export class VocabularyService {
 
       throw error
     }
+  }
+
+  /**
+   * Search vocabularies.
+   * Strategy: try Elasticsearch first (fast, fuzzy, typo-tolerant).
+   * Falls back to Prisma ILIKE query when ES is unavailable.
+   */
+  async searchVocabularies(query: SearchVocabularyQueryType) {
+    const esResults = await this.vocabularyIndexService.search(query)
+
+    if (esResults !== null) {
+      // ES hit — map to the same shape as Prisma results
+      const data = esResults.map((doc) => ({
+        id: doc.id,
+        word: doc.word,
+        phoneticUk: doc.phoneticUk,
+        phoneticUs: doc.phoneticUs,
+        partOfSpeech: doc.partOfSpeech,
+        meaningVi: doc.meaningVi,
+        meaningEn: doc.meaningEn,
+        exampleEn: doc.exampleEn,
+        exampleVi: doc.exampleVi,
+        imageUrl: doc.imageUrl,
+        audioUrlUk: doc.audioUrlUk,
+        audioUrlUs: doc.audioUrlUs,
+        audioExampleUrl: doc.audioExampleUrl,
+        level: doc.level,
+      }))
+      return { data }
+    }
+
+    // Fallback to Prisma
+    this.logger.warn('Elasticsearch unavailable — falling back to Prisma for search')
+    const data = await this.vocabularyRepository.searchVocabularies(query)
+
+    return { data }
+  }
+
+  // GET /admin/words — danh sách words + stats
+  async getWordsForAdmin(query: GetWordsAdminQueryType) {
+    return this.vocabularyRepository.findWordsForAdmin({
+      page: query.page ?? 1,
+      limit: query.limit ?? 10,
+      search: query.search,
+      level: query.level,
+      partOfSpeech: query.partOfSpeech,
+    })
+  }
+
+  // PATCH /admin/words/:id — cập nhật thông tin word (text fields)
+  async updateVocabulary(wordId: string, body: UpdateVocabularyBodyType) {
+    const word = await this.vocabularyRepository.findVocabularyById(wordId)
+    if (!word) throw new NotFoundException('Error.VocabularyNotFound')
+
+    return this.vocabularyRepository.updateVocabulary(wordId, body)
+  }
+
+  // DELETE /admin/words/:id — soft delete word
+  async deleteVocabulary(wordId: string) {
+    const word = await this.vocabularyRepository.findVocabularyById(wordId)
+    if (!word) throw new NotFoundException('Error.VocabularyNotFound')
+
+    await this.vocabularyRepository.softDeleteVocabulary(wordId)
+
+    // Soft delete in Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.deleteVocabulary(wordId).catch(() => {})
+
+    return { message: 'Xóa từ vựng thành công' }
+  }
+
+  async getMyLists(userId: string, query: GetListsQueryType) {
+    return await this.vocabularyRepository.findListsByOwner(userId, {
+      ...query,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
+    })
+  }
+
+  async createMyList(body: CreateLearnerListBodyType, userId: string) {
+    const list = await this.vocabularyRepository.createList({
+      ...body,
+      isPublic: false,
+      createdBy: userId,
+    })
+    return { ...list, totalWords: list._count.items }
+  }
+
+  async updateMyList(listId: string, body: UpdateLearnerListBodyType, userId: string) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwner(list.createdBy, userId)
+
+    const updated = await this.vocabularyRepository.updateList(listId, body)
+    return { ...updated, totalWords: updated._count.items }
+  }
+
+  async deleteMyList(listId: string, userId: string) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwner(list.createdBy, userId)
+
+    await this.vocabularyRepository.softDeleteList(listId)
+    return { message: 'Xóa danh sách từ vựng thành công' }
+  }
+
+  async addItemsToMyList(listId: string, body: AddItemsByIdsBodyType, userId: string) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwner(list.createdBy, userId)
+
+    const existing = await this.vocabularyRepository.findExistingListItems(listId, body.vocabularyIds)
+    const existingIds = new Set(existing.map((e) => e.vocabularyId))
+    const newIds = body.vocabularyIds.filter((id) => !existingIds.has(id))
+
+    if (newIds.length === 0) {
+      return { added: 0, skipped: body.vocabularyIds.length }
+    }
+
+    const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
+    const items = newIds.map((vocabularyId, i) => ({
+      listId,
+      vocabularyId,
+      orderIndex: maxIndex + 1 + i,
+    }))
+
+    await this.vocabularyRepository.addItemsToList(items)
+    return { added: newIds.length, skipped: body.vocabularyIds.length - newIds.length }
+  }
+
+  async addNewVocabularyToMyList({
+    listId,
+    body,
+    image,
+    userId,
+  }: {
+    listId: string
+    body: AddNewVocabularyToListBodyType
+    image?: UploadedFileData
+    userId: string
+  }) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwner(list.createdBy, userId)
+
+    let imageUrl: string | undefined
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_IMAGE_FOLDER)
+    }
+
+    const { audioUrlUk, audioUrlUs } = await this.generateAndUploadVocabularyAudio(body.word)
+
+    const vocabulary = await this.vocabularyRepository.createVocabulary({
+      ...body,
+      imageUrl,
+      audioUrlUk,
+      audioUrlUs,
+      createdBy: userId,
+    })
+
+    // Sync to Elasticsearch (fire-and-forget)
+    this.vocabularyIndexService.indexVocabulary({ ...vocabulary, deletedAt: null }).catch(() => {})
+
+    const maxIndex = await this.vocabularyRepository.getMaxOrderIndex(listId)
+    await this.vocabularyRepository.addItemsToList([{ listId, vocabularyId: vocabulary.id, orderIndex: maxIndex + 1 }])
+
+    return { added: 1, skipped: 0 }
+  }
+
+  async removeItemFromMyList(listId: string, vocabularyId: string, userId: string) {
+    const list = await this.vocabularyRepository.findListById(listId)
+    if (!list) throw new NotFoundException('Error.VocabularyListNotFound')
+
+    this.verifyOwner(list.createdBy, userId)
+
+    try {
+      await this.vocabularyRepository.removeItemFromList(listId, vocabularyId)
+    } catch {
+      throw new NotFoundException('Error.VocabularyNotFoundInList')
+    }
+
+    return { message: 'Xóa từ vựng khỏi danh sách thành công' }
   }
 }

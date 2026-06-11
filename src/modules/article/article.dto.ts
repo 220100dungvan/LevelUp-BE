@@ -18,10 +18,18 @@ import {
   SubmitArticleQuizResSchema,
   UpdateArticleBodySchema,
   UpdateQuizQuestionSchema,
+  CreateArticleTopicBodySchema,
+  ArticleTopicSchema,
+  UpdateArticleTopicBodySchema,
 } from '@/modules/article/article.schema'
 import { createZodDto } from 'nestjs-zod'
 
 export class GetArticleTopicsResDTO extends createZodDto(GetArticleTopicsResSchema) {}
+
+export class CreateArticleTopicBodyDTO extends createZodDto(CreateArticleTopicBodySchema) {}
+export class UpdateArticleTopicBodyDTO extends createZodDto(UpdateArticleTopicBodySchema) {}
+
+export class ArticleTopicDTO extends createZodDto(ArticleTopicSchema) {}
 
 export class GetArticlesResDTO extends createZodDto(GetArticlesResSchema) {}
 export class GetArticlesQueryDTO extends createZodDto(GetArticlesQuerySchema) {}

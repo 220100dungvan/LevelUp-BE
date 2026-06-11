@@ -23,6 +23,9 @@ import {
   SubmitArticleQuizResDTO,
   UpdateArticleBodyDTO,
   UpdateQuizQuestionBodyDTO,
+  CreateArticleTopicBodyDTO,
+  ArticleTopicDTO,
+  UpdateArticleTopicBodyDTO,
 } from '@/modules/article/article.dto'
 import { ArticleService } from '@/modules/article/article.service'
 import {
@@ -59,6 +62,40 @@ export class ArticleController {
   @ZodResponse({ type: GetArticleTopicsResDTO })
   getTopics() {
     return this.articleService.getTopics()
+  }
+
+  // (Admin) tạo Article Topic
+  @Post('topics')
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
+  @ZodResponse({ type: ArticleTopicDTO })
+  createTopic(
+    @Body() body: CreateArticleTopicBodyDTO,
+    @UploadedFile(requiredImageFileValidationPipe)
+    thumbnail: UploadedFileData,
+  ) {
+    return this.articleService.createTopic(body, thumbnail)
+  }
+
+  @Patch('topics/:topicId')
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
+  @ZodResponse({ type: ArticleTopicDTO })
+  updateTopic(
+    @Param('topicId', ParseUUIDPipe) topicId: string,
+    @Body() body: UpdateArticleTopicBodyDTO,
+    @UploadedFile(optionalImageFileValidationPipe)
+    thumbnail?: UploadedFileData,
+  ) {
+    return this.articleService.updateTopic(topicId, body, thumbnail)
+  }
+
+  @Delete('topics/:topicId')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: MessageResDTO })
+  deleteTopic(@Param('topicId', ParseUUIDPipe) topicId: string) {
+    return this.articleService.deleteTopic(topicId)
   }
 
   @Get()

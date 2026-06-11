@@ -22,6 +22,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@elastic/elasticsearch": "^8.19.1",
     "@keyv/redis": "^5.1.6",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.1.2",

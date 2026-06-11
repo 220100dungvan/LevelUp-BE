@@ -1,4 +1,4 @@
-import { TypeOfVerificationCode, TypeOfVerificationCodeType, UserRoleType } from '@/common/constants/auth.constant'
+import { TypeOfVerificationCode, TypeOfVerificationCodeType } from '@/common/constants/auth.constant'
 import { EmailService } from '@/common/emails/email.service'
 import { TwoFactorService } from '@/common/services/2fa.service'
 import { HashingService } from '@/common/services/hashing.service'
@@ -90,7 +90,7 @@ export class AuthService {
     return { message: 'Gửi mã OTP thành công' }
   }
 
-  async login(body: LoginBodyType & { userAgent: string; ip: string; role: UserRoleType }) {
+  async login(body: LoginBodyType & { userAgent: string; ip: string }) {
     //1. Kiểm tra email có tồn tại không
     const user = await this.authRepository.findUniqueUser({
       email: body.email,
@@ -155,7 +155,7 @@ export class AuthService {
     const tokens = await this.generateTokens({
       userId: user.id,
       deviceId: device.id,
-      role: body.role,
+      role: user.role,
     })
     return tokens
   }

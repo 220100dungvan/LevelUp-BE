@@ -15,6 +15,7 @@ if (!fs.existsSync(path.resolve('.env'))) {
 const configSchema = z.object({
   DATABASE_URL: z.string(),
   FRONTEND_URL: z.string(),
+  APP_CHECK_ENABLED: z.string(),
   ACCESS_TOKEN_SECRET: z.string(),
   ACCESS_TOKEN_EXPIRES_IN: z.string(),
   REFRESH_TOKEN_SECRET: z.string(),
@@ -59,7 +60,11 @@ const configSchema = z.object({
   CLOUDINARY_API_SECRET: z.string(),
   CLOUDINARY_VIDEO_TOPIC_FOLDER: z.string(),
   CLOUDINARY_SHADOWING_AUDIO_FOLDER: z.string(),
+  CLOUDINARY_VOCABULARY_TOPIC_FOLDER: z.string(),
+  CLOUDINARY_VOCABULARY_IMAGE_FOLDER: z.string(),
+  CLOUDINARY_VOCABULARY_AUDIO_FOLDER: z.string(),
   CLOUDINARY_ARTICLE_AUDIO_FOLDER: z.string(),
+  CLOUDINARY_ARTICLE_TOPIC_FOLDER: z.string(),
   CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER: z.string(),
   LEARNING_TOKEN_SECRET: z.string(),
   // Dictionary
@@ -68,6 +73,10 @@ const configSchema = z.object({
   URBAN_DICTIONARY_API_ENDPOINT: z.string(),
   FREE_DICTIONARY_API_ENDPOINT: z.string(),
   DICTIONARY_API_ENDPOINT: z.string(),
+
+  ELASTICSEARCH_URL: z.string(),
+  ELASTICSEARCH_USERNAME: z.string(),
+  ELASTICSEARCH_PASSWORD: z.string(),
 })
 
 const configServer = configSchema.safeParse(process.env)

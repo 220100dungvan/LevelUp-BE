@@ -4,14 +4,14 @@ import { ActiveUser } from '@/common/decorators/active-user.decorator'
 import { IsPublic } from '@/common/decorators/auth.decorator'
 import { Roles } from '@/common/decorators/roles.decorator'
 import { MessageResDTO } from '@/common/dtos/response.dto'
+import { optionalImageFileValidationPipe } from '@/common/pipes/image-file-validation.pipe'
+import type { UploadedFileData } from '@/common/types/uploaded-file.type'
 import {
-  AddItemsToListBodyDTO,
   AddItemsToListResDTO,
   CreateVocabularyBodyDTO,
   CreateVocabularyListBodyDTO,
   CreateVocabularyListResDTO,
   CreateVocabularyResDTO,
-  CreateTopicBodyDTO,
   DeleteVocabularyListResDTO,
   GetListDetailResDTO,
   GetListsQueryDTO,
@@ -19,11 +19,36 @@ import {
   GetTopicsResDTO,
   ReorderItemsBodyDTO,
   UpdateVocabularyListBodyDTO,
-  UpdateTopicBodyDTO,
+  UpdateVocabularyTopicBodyDTO,
   VocabularyTopicDTO,
+  SearchVocabularyResDTO,
+  SearchVocabularyQueryDTO,
+  AddNewVocabularyToListBodyDTO,
+  AddItemsByIdsBodyDTO,
+  CreateVocabularyTopicBodyDTO,
+  GetWordsAdminResDTO,
+  GetWordsAdminQueryDTO,
+  UpdateVocabularyBodyDTO,
+  DeleteVocabularyResDTO,
+  CreateLearnerListBodyDTO,
+  UpdateLearnerListBodyDTO,
 } from '@/modules/vocabulary/vocabulary.dto'
 import { VocabularyService } from '@/modules/vocabulary/vocabulary.service'
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
 import { ZodResponse } from 'nestjs-zod'
 
 @Controller('vocabularies')
@@ -48,17 +73,26 @@ export class VocabularyController {
   // Tạo mới chủ đề từ vựng [Admin]
   @Post('topic')
   @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @ZodResponse({ type: VocabularyTopicDTO })
-  createTopic(@Body() body: CreateTopicBodyDTO) {
-    return this.vocabularyService.createTopic(body)
+  createTopic(
+    @Body() body: CreateVocabularyTopicBodyDTO,
+    @UploadedFile(optionalImageFileValidationPipe) thumbnail: UploadedFileData,
+  ) {
+    return this.vocabularyService.createTopic(body, thumbnail)
   }
 
   // Cập nhật chủ đề từ vựng [Admin]
   @Patch('topic/:id')
   @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @ZodResponse({ type: VocabularyTopicDTO })
-  updateTopic(@Param('id') topicId: string, @Body() body: UpdateTopicBodyDTO) {
-    return this.vocabularyService.updateTopic(topicId, body)
+  updateTopic(
+    @Param('id') topicId: string,
+    @Body() body: UpdateVocabularyTopicBodyDTO,
+    @UploadedFile(optionalImageFileValidationPipe) thumbnail?: UploadedFileData,
+  ) {
+    return this.vocabularyService.updateTopic(topicId, body, thumbnail)
   }
 
   // Xóa mềm chủ đề từ vựng [Admin]
@@ -75,8 +109,15 @@ export class VocabularyController {
   @IsPublic()
   @ZodResponse({ type: GetListsResDTO })
   getLists(@Query() query: GetListsQueryDTO) {
-    console.log('Query params:', query)
     return this.vocabularyService.getLists(query)
+  }
+
+  // Lấy danh sách các list từ vựng (admin)
+  @Get('admin/list')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: GetListsResDTO })
+  getListsForAdmin(@Query() query: GetListsQueryDTO) {
+    return this.vocabularyService.getListsForAdmin(query)
   }
 
   // Lấy chi tiết list, bao gồm danh sách từ vựng bên trong (kiểm tra quyền truy cập)
@@ -117,17 +158,30 @@ export class VocabularyController {
     return this.vocabularyService.deleteList(id, userId, role)
   }
 
-  // Thêm từ vựng vào list (từ đã có trong DB hoặc tạo mới)
   @Post('list/:id/items')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ZodResponse({ type: AddItemsToListResDTO })
-  addItemsToList(
+  addItemsByIds(
     @Param('id') id: string,
-    @Body() body: AddItemsToListBodyDTO,
+    @Body() body: AddItemsByIdsBodyDTO,
     @ActiveUser('userId') userId: string,
     @ActiveUser('role') role: RoleNameType,
   ) {
-    return this.vocabularyService.addItemsToList(id, body, userId, role)
+    return this.vocabularyService.addItemsByIds(id, body, userId, role)
+  }
+
+  @Post('list/:id/items/with-image')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('image'))
+  @ZodResponse({ type: AddItemsToListResDTO })
+  addNewVocabularyToList(
+    @Param('id') listId: string,
+    @Body() body: AddNewVocabularyToListBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @ActiveUser('role') role: RoleNameType,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
+  ) {
+    return this.vocabularyService.addNewVocabularyToList({ listId, body, userId, role, image })
   }
 
   // Xóa một từ khỏi list
@@ -161,8 +215,116 @@ export class VocabularyController {
   // Tạo một từ vựng standalone [Teacher/Admin]
   @Post()
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('image'))
   @ZodResponse({ type: CreateVocabularyResDTO })
-  createVocabulary(@Body() body: CreateVocabularyBodyDTO, @ActiveUser('userId') userId: string) {
-    return this.vocabularyService.createVocabulary(body, userId)
+  createVocabulary(
+    @Body() body: CreateVocabularyBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
+  ) {
+    return this.vocabularyService.createVocabulary(body, userId, image)
+  }
+
+  // Tìm kiếm từ vựng theo từ khóa
+  @Get('search')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ZodResponse({ type: SearchVocabularyResDTO })
+  searchVocabularies(@Query() query: SearchVocabularyQueryDTO) {
+    return this.vocabularyService.searchVocabularies(query)
+  }
+
+  // Lấy danh sách từ vựng dạng phân trang cho admin,
+  // kèm stats (total, coverage audio/image/IPA, by-level, by-pos)
+  @Get('words')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: GetWordsAdminResDTO })
+  getWordsForAdmin(@Query() query: GetWordsAdminQueryDTO) {
+    return this.vocabularyService.getWordsForAdmin(query)
+  }
+
+  // Chỉnh sửa thông tin text của word (không bao gồm image)
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: CreateVocabularyResDTO })
+  updateVocabulary(@Param('id') id: string, @Body() body: UpdateVocabularyBodyDTO) {
+    return this.vocabularyService.updateVocabulary(id, body)
+  }
+
+  // Soft delete word; word vẫn còn trong list items hiện có nhưng sẽ ẩn với user
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: DeleteVocabularyResDTO })
+  deleteVocabulary(@Param('id') id: string) {
+    return this.vocabularyService.deleteVocabulary(id)
+  }
+
+  @Get('me/lists')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: GetListsResDTO })
+  getMyLists(@Query() query: GetListsQueryDTO, @ActiveUser('userId') userId: string) {
+    return this.vocabularyService.getMyLists(userId, query)
+  }
+
+  @Post('me/lists')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: CreateVocabularyListResDTO })
+  createMyList(@Body() body: CreateLearnerListBodyDTO, @ActiveUser('userId') userId: string) {
+    return this.vocabularyService.createMyList(body, userId)
+  }
+
+  @Patch('me/lists/:id')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: CreateVocabularyListResDTO })
+  updateMyList(
+    @Param('id') listId: string,
+    @Body() body: UpdateLearnerListBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.vocabularyService.updateMyList(listId, body, userId)
+  }
+
+  @Delete('me/lists/:id')
+  @Roles(UserRole.LEARNER)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: DeleteVocabularyListResDTO })
+  deleteMyList(@Param('id') listId: string, @ActiveUser('userId') userId: string) {
+    return this.vocabularyService.deleteMyList(listId, userId)
+  }
+
+  @Post('me/lists/:id/items')
+  @Roles(UserRole.LEARNER)
+  @ZodResponse({ type: AddItemsToListResDTO })
+  addItemsToMyList(
+    @Param('id') listId: string,
+    @Body() body: AddItemsByIdsBodyDTO,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.vocabularyService.addItemsToMyList(listId, body, userId)
+  }
+
+  @Post('me/lists/:id/items/new')
+  @Roles(UserRole.LEARNER)
+  @UseInterceptors(FileInterceptor('image'))
+  @ZodResponse({ type: AddItemsToListResDTO })
+  addNewVocabularyToMyList(
+    @Param('id') listId: string,
+    @Body() body: AddNewVocabularyToListBodyDTO,
+    @ActiveUser('userId') userId: string,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
+  ) {
+    return this.vocabularyService.addNewVocabularyToMyList({ listId, body, userId, image })
+  }
+
+  @Delete('me/lists/:id/items/:vocabularyId')
+  @Roles(UserRole.LEARNER)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: MessageResDTO })
+  removeItemFromMyList(
+    @Param('id') listId: string,
+    @Param('vocabularyId') vocabularyId: string,
+    @ActiveUser('userId') userId: string,
+  ) {
+    return this.vocabularyService.removeItemFromMyList(listId, vocabularyId, userId)
   }
 }

@@ -1,18 +1,22 @@
-FROM node:22-alpine
+FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Cài đặt dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Copy code và folder prisma
+COPY prisma ./prisma
 COPY . .
 
-# Generate Prisma Client & Build
 RUN npx prisma generate
 RUN npm run build
 
-# Mở cổng và chạy
+FROM node:22-alpine
+WORKDIR /app
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json .
+COPY --from=builder /app/prisma ./prisma
+
 EXPOSE 3000
-# Thử chạy từ folder src bên trong dist
 CMD ["node", "dist/src/main.js"]

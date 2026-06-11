@@ -1,5 +1,5 @@
 import { ArticleStatus, QuizQuestionType, VoiceType } from '@/common/constants/article.constant'
-import { Level } from '@/common/constants/vocabulary.constant'
+import { Level, PART_OF_SPEECH } from '@/common/constants/vocabulary.constant'
 import { VocabularySchema } from '@/modules/vocabulary/vocabulary.schema'
 import z from 'zod'
 
@@ -15,6 +15,28 @@ export const ArticleTopicSchema = z.object({
 export const GetArticleTopicsResSchema = z.object({
   data: z.array(ArticleTopicSchema),
 })
+
+export const CreateArticleTopicBodySchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    description: z.string().optional(),
+  })
+  .strict()
+
+export const UpdateArticleTopicBodySchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    description: z.string().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (Object.keys(data).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Phải cung cấp ít nhất một trường để cập nhật',
+      })
+    }
+  })
 
 export const ArticleSchema = z.object({
   id: z.string().uuid(),
@@ -343,7 +365,20 @@ export const CreateArticleVocabularySchema = z
     word: z.string().min(1),
     phoneticUk: z.string().optional(),
     phoneticUs: z.string().optional(),
-    partOfSpeech: z.string().optional(),
+    partOfSpeech: z.enum([
+      PART_OF_SPEECH.NOUN,
+      PART_OF_SPEECH.VERB,
+      PART_OF_SPEECH.ADJECTIVE,
+      PART_OF_SPEECH.ADVERB,
+      PART_OF_SPEECH.PRONOUN,
+      PART_OF_SPEECH.PREPOSITION,
+      PART_OF_SPEECH.CONJUNCTION,
+      PART_OF_SPEECH.INTERJECTION,
+      PART_OF_SPEECH.DETERMINER,
+      PART_OF_SPEECH.NUMERAL,
+      PART_OF_SPEECH.PHRASE,
+      PART_OF_SPEECH.OTHER,
+    ]),
     meaningVi: z.string().min(1),
     meaningEn: z.string().optional(),
     exampleEn: z.string().optional(),
@@ -475,3 +510,5 @@ export type QuizAttemptResultType = z.infer<typeof QuizAttemptResultSchema>
 export type QuizAttemptLastType = z.infer<typeof QuizAttemptSchema>
 export type GetArticleQuizAttemptResType = z.infer<typeof GetArticleQuizAttemptResSchema>
 export type GetAllArticleQuizAttemptsResType = z.infer<typeof GetAllArticleQuizAttemptsResSchema>
+export type CreateArticleTopicBodyType = z.infer<typeof CreateArticleTopicBodySchema>
+export type UpdateArticleTopicBodyType = z.infer<typeof UpdateArticleTopicBodySchema>
