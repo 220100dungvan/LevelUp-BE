@@ -56,8 +56,9 @@ import { ReminderService } from '@/cronjobs/reminder.cronjob'
     BullModule.forRootAsync({
       useFactory: () => ({
         connection: {
-          host: envConfig.REDIS_HOST,
+          host: process.env.REDIS_HOST || 'redis',
           port: Number(envConfig.REDIS_PORT),
+          password: envConfig.REDIS_PASSWORD,
         },
         defaultJobOptions: {
           removeOnComplete: 50,
