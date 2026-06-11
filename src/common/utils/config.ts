@@ -40,6 +40,7 @@ const configSchema = z.object({
   POSTGRES_PORT: z.string(),
 
   REDIS_CONTAINER_NAME: z.string(),
+  REDIS_PASSWORD: z.string(),
   REDIS_PORT: z.string(),
   REDIS_HOST: z.string(),
   REDIS_URL: z.string(),
