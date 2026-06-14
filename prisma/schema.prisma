@@ -131,6 +131,9 @@ model User {
   updatedAt   DateTime   @updatedAt @map("updated_at")
   deletedAt   DateTime?  @map("deleted_at")
 
+  isOnboarded Boolean       @default(false)
+  level       Level      @default(BEGINNER)
+
   // Relations
   userStat               UserStat?
   learningDaily          UserLearningDaily[]

@@ -1,7 +1,7 @@
 import { ActiveUser } from '@/common/decorators/active-user.decorator'
-import { GetUserProfileResDTO } from './profile.dto'
+import { GetUserProfileResDTO, OnboardingBodyDTO, OnboardingResDTO } from './profile.dto'
 import { ProfileService } from './profile.service'
-import { Controller, Get } from '@nestjs/common'
+import { Body, Controller, Get, Patch } from '@nestjs/common'
 import { ZodResponse } from 'nestjs-zod'
 
 @Controller('profile')
@@ -12,5 +12,11 @@ export class ProfileController {
   @ZodResponse({ type: GetUserProfileResDTO })
   getProfile(@ActiveUser('userId') userId: string) {
     return this.profileService.getProfile(userId)
+  }
+
+  @Patch('onboarding')
+  @ZodResponse({ type: OnboardingResDTO })
+  completeOnboarding(@Body() body: OnboardingBodyDTO, @ActiveUser('userId') userId: string) {
+    return this.profileService.completeOnboarding(userId, body)
   }
 }
