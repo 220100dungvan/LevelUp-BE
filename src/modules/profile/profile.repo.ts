@@ -1,6 +1,7 @@
 import { PrismaService } from '@/common/services/prisma.service'
 import { Injectable } from '@nestjs/common'
 import { User } from '@/generated/prisma/client'
+import { OnboardingBodyType } from '@/modules/profile/profile.schema'
 
 @Injectable()
 export class ProfileRepository {
@@ -11,6 +12,22 @@ export class ProfileRepository {
       where: {
         id: userId,
         deletedAt: null,
+      },
+      omit: {
+        password: true,
+        totpSecret: true,
+      },
+    })
+  }
+
+  async completeOnboarding(userId: string, data: OnboardingBodyType): Promise<Omit<User, 'password' | 'totpSecret'>> {
+    return this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        gender: data.gender,
+        dateOfBirth: data.dateOfBirth,
+        level: data.level,
+        isOnboarded: true,
       },
       omit: {
         password: true,
