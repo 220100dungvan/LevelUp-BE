@@ -12,6 +12,8 @@ import {
   RegisterResDTO,
   SendOTPBodyDTO,
   TwoFactorSetupResDTO,
+  VerifyLoginTwoFactorBodyDTO,
+  VerifyLoginTwoFactorResDTO,
   VerifyTwoFactorSetupBodyDTO,
 } from '@/modules/auth/auth.dto'
 import { AuthService } from '@/modules/auth/auth.service'
@@ -45,6 +47,14 @@ export class AuthController {
   @ZodResponse({ type: LoginResDTO })
   login(@Body() body: LoginBodyDTO, @UserAgent() userAgent: string, @Ip() ip: string) {
     return this.authService.login({ ...body, userAgent, ip })
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
+  @Post('login/verify-2fa')
+  @IsPublic()
+  @ZodResponse({ type: VerifyLoginTwoFactorResDTO })
+  verifyLoginTwoFactor(@Body() body: VerifyLoginTwoFactorBodyDTO, @UserAgent() userAgent: string, @Ip() ip: string) {
+    return this.authService.verifyLoginTwoFactor({ ...body, userAgent, ip })
   }
 
   @Post('refresh-token')

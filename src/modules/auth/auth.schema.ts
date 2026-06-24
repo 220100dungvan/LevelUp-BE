@@ -58,29 +58,24 @@ export const LoginBodySchema = z
     email: z.string().email(),
     password: z.string().min(6).max(100),
   })
-  .extend({
-    totpCode: z.string().length(6).optional(), // 2FA code
-    code: z.string().length(6).optional(), // Email OTP code
+  .strict()
+
+export const VerifyLoginTwoFactorBodySchema = z
+  .object({
+    loginToken: z.string(),
+    totpCode: z.string().length(6).optional(),
+    code: z.string().length(6).optional(),
   })
   .strict()
-  .superRefine(({ totpCode, code }, ctx) => {
-    // Nếu mà truyền cùng lúc totpCode và code thì sẽ add issue
-    const message = 'Bạn chỉ nên truyền mã xác thực 2FA hoặc mã OTP. Không được truyền cả 2'
-    if (totpCode !== undefined && code !== undefined) {
-      ctx.addIssue({
-        path: ['totpCode'],
-        message,
-        code: 'custom',
-      })
-      ctx.addIssue({
-        path: ['code'],
-        message,
-        code: 'custom',
-      })
-    }
-  })
 
 export const LoginResSchema = z.object({
+  requires2FA: z.boolean(),
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
+  loginToken: z.string().optional(),
+})
+
+export const VerifyLoginTwoFactorResSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
 })
@@ -99,7 +94,10 @@ export const RefreshTokenBodySchema = z
   })
   .strict()
 
-export const RefreshTokenResSchema = LoginResSchema
+export const RefreshTokenResSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+})
 export const LogoutBodySchema = RefreshTokenBodySchema
 
 export const DeviceSchema = z.object({
@@ -170,6 +168,7 @@ export type RegisterResType = z.infer<typeof RegisterResSchema>
 export type RegisterBodyType = z.infer<typeof RegisterBodySchema>
 export type SendOTPBodyType = z.infer<typeof SendOTPBodySchema>
 export type LoginBodyType = z.infer<typeof LoginBodySchema>
+export type VerifyLoginTwoFactorBodyType = z.infer<typeof VerifyLoginTwoFactorBodySchema>
 export type LoginResType = z.infer<typeof LoginResSchema>
 export type RefreshTokenType = z.infer<typeof RefreshTokenSchema>
 export type DeviceType = z.infer<typeof DeviceSchema>
