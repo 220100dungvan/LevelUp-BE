@@ -10,6 +10,8 @@ import {
   RegisterResSchema,
   SendOTPBodySchema,
   TwoFactorSetupResSchema,
+  VerifyLoginTwoFactorBodySchema,
+  VerifyLoginTwoFactorResSchema,
   VerifyTwoFactorSetupBodySchema,
 } from '@/modules/auth/auth.schema'
 import { createZodDto } from 'nestjs-zod'
@@ -21,6 +23,10 @@ export class RegisterResDTO extends createZodDto(RegisterResSchema) {}
 export class SendOTPBodyDTO extends createZodDto(SendOTPBodySchema) {}
 
 export class LoginBodyDTO extends createZodDto(LoginBodySchema) {}
+
+export class VerifyLoginTwoFactorBodyDTO extends createZodDto(VerifyLoginTwoFactorBodySchema) {}
+
+export class VerifyLoginTwoFactorResDTO extends createZodDto(VerifyLoginTwoFactorResSchema) {}
 
 export class LoginResDTO extends createZodDto(LoginResSchema) {}
 

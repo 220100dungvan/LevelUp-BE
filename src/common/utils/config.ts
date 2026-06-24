@@ -70,6 +70,7 @@ const configSchema = z.object({
   CLOUDINARY_ARTICLE_TOPIC_FOLDER: z.string(),
   CLOUDINARY_ARTICLE_THUMBNAIL_FOLDER: z.string(),
   LEARNING_TOKEN_SECRET: z.string(),
+  LOGIN_2FA_TOKEN_SECRET: z.string(),
   // Dictionary
   GIPHY_API_ENDPOINT: z.string(),
   GIPHY_API_KEY: z.string(),

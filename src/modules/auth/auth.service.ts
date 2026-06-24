@@ -14,9 +14,16 @@ import {
   RefreshTokenBodyType,
   RegisterBodyType,
   SendOTPBodyType,
+  VerifyLoginTwoFactorBodyType,
 } from '@/modules/auth/auth.schema'
 import { UserRepository } from '@/modules/user/user.repo'
-import { HttpException, Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common'
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common'
 import { addMilliseconds } from 'date-fns'
 import ms, { StringValue } from 'ms'
 
@@ -115,34 +122,15 @@ export class AuthService {
       ])
     }
 
-    //3. Nếu user đã bật mã 2FA thì kiểm tra mã 2FA TOTP Code hoặc OTP Code (email)
-    if (user.totpSecret) {
-      // Nếu không có mã TOTP Code và Code thì thông báo cho client biết
-      if (!body.totpCode && !body.code) {
-        throw new UnprocessableEntityException([
-          {
-            message: 'Error.InvalidTOTPAndCode',
-          },
-        ])
-      }
-      if (body.totpCode) {
-        const isValidTOTP = this.twoFactorService.verifyTOTP({
-          email: user.email,
-          secret: user.totpSecret,
-          token: body.totpCode,
-        })
-        if (!isValidTOTP) {
-          throw new UnprocessableEntityException([
-            {
-              message: 'Error.InvalidTOTP',
-            },
-          ])
-        }
-      } else if (body.code) {
-        await this.validateVerificationCode({
-          email: body.email,
-          type: TypeOfVerificationCode.LOGIN,
-        })
+    //3. Kiểm tra xem user có bật 2FA không, nếu có thì trả về requires2FA = true và loginToken
+    if (user.totpEnabled) {
+      const loginToken = this.tokenService.signVerifyLoginTwoFactorToken({
+        userId: user.id,
+      })
+
+      return {
+        requires2FA: true,
+        loginToken,
       }
     }
     //4. Tạo device
@@ -157,7 +145,72 @@ export class AuthService {
       deviceId: device.id,
       role: user.role,
     })
-    return tokens
+    return { ...tokens, requires2FA: false }
+  }
+
+  async verifyLoginTwoFactor(body: VerifyLoginTwoFactorBodyType & { userAgent: string; ip: string }) {
+    //1. Xác thực loginToken
+    try {
+      const { userId } = await this.tokenService.verifyLoginTwoFactorToken(body.loginToken)
+
+      const user = await this.authRepository.findUniqueUser({
+        id: userId,
+      })
+      if (!user) {
+        throw new UnauthorizedException()
+      }
+
+      if (body.totpCode) {
+        const isValidTOTP = this.twoFactorService.verifyTOTP({
+          email: user.email,
+          secret: user.totpSecret!,
+          token: body.totpCode,
+        })
+
+        if (!isValidTOTP) {
+          throw new UnprocessableEntityException([
+            {
+              message: 'Error.InvalidTOTP',
+            },
+          ])
+        }
+      } else if (body.code) {
+        await this.validateVerificationCode({
+          email: user.email,
+          type: TypeOfVerificationCode.LOGIN,
+        })
+      } else {
+        throw new UnprocessableEntityException([
+          {
+            message: 'Error.InvalidTOTPAndCode',
+          },
+        ])
+      }
+
+      const device = await this.authRepository.createDevice({
+        userId: user.id,
+        userAgent: body.userAgent,
+        ip: body.ip,
+      })
+
+      //Xóa mã OTP đã sử dụng nếu có
+      if (body.code) {
+        await this.authRepository.deleteVerificationCode({
+          email_type: {
+            email: user.email,
+            type: TypeOfVerificationCode.LOGIN,
+          },
+        })
+      }
+
+      return this.generateTokens({
+        userId: user.id,
+        deviceId: device.id,
+        role: user.role,
+      })
+    } catch {
+      throw new BadRequestException('Error.InvalidToken')
+    }
   }
 
   async generateTokens({ userId, deviceId, role }: AccessTokenPayloadCreate) {
@@ -442,7 +495,17 @@ export class AuthService {
     }
 
     // 4. Cập nhật secret thành null
-    await this.userRepository.update({ id: userId }, { totpSecret: null, updatedAt: new Date() })
+    await this.userRepository.update({ id: userId }, { totpSecret: null, totpEnabled: false, updatedAt: new Date() })
+
+    // 5. Xóa mã OTP đã sử dụng nếu có
+    if (code) {
+      await this.authRepository.deleteVerificationCode({
+        email_type: {
+          email: user.email,
+          type: TypeOfVerificationCode.DISABLE_2FA,
+        },
+      })
+    }
 
     // 5. Trả về thông báo
     return {

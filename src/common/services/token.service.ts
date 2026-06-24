@@ -5,6 +5,8 @@ import {
   RefreshTokenPayload,
   RefreshTokenPayloadCreate,
   DictationSubmitPayload,
+  LoginTokenPayload,
+  LoginTokenPayloadCreate,
 } from '@/common/types/jwt.type'
 import { Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
@@ -37,6 +39,17 @@ export class TokenService {
     )
   }
 
+  signVerifyLoginTwoFactorToken(payload: LoginTokenPayloadCreate) {
+    return this.jwtService.sign(
+      { ...payload, uuid: uuidv4() },
+      {
+        secret: envConfig.LOGIN_2FA_TOKEN_SECRET,
+        expiresIn: '1d',
+        algorithm: 'HS256',
+      },
+    )
+  }
+
   verifyAccessToken(token: string): Promise<AccessTokenPayload> {
     return this.jwtService.verifyAsync(token, {
       secret: envConfig.ACCESS_TOKEN_SECRET,
@@ -52,6 +65,12 @@ export class TokenService {
   verifyDictationSubmit(token: string): Promise<DictationSubmitPayload> {
     return this.jwtService.verifyAsync(token, {
       secret: envConfig.LEARNING_TOKEN_SECRET,
+    })
+  }
+
+  verifyLoginTwoFactorToken(token: string): Promise<LoginTokenPayload> {
+    return this.jwtService.verifyAsync(token, {
+      secret: envConfig.LOGIN_2FA_TOKEN_SECRET,
     })
   }
 }

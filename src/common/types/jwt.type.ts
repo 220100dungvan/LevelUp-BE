@@ -26,3 +26,12 @@ export interface DictationSubmitPayload {
   userText: string
   replayCount?: number
 }
+
+export interface LoginTokenPayloadCreate {
+  userId: string
+}
+
+export interface LoginTokenPayload extends LoginTokenPayloadCreate {
+  exp: number
+  iat: number
+}
