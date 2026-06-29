@@ -460,8 +460,7 @@ export class VocabularyService {
   async searchVocabularies(query: SearchVocabularyQueryType) {
     const esResults = await this.vocabularyIndexService.search(query)
 
-    if (esResults !== null) {
-      // ES hit — map to the same shape as Prisma results
+    if (esResults !== null && esResults.length > 0) {
       const data = esResults.map((doc) => ({
         id: doc.id,
         word: doc.word,
@@ -481,10 +480,7 @@ export class VocabularyService {
       return { data }
     }
 
-    // Fallback to Prisma
-    this.logger.warn('Elasticsearch unavailable — falling back to Prisma for search')
     const data = await this.vocabularyRepository.searchVocabularies(query)
-
     return { data }
   }
 

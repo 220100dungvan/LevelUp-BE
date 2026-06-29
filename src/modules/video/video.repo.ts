@@ -293,6 +293,12 @@ export class VideoRepository {
     })
   }
 
+  unlinkVideoVocabulary(videoId: string, vocabularyId: string) {
+    return this.prismaService.mediaVocabulary.deleteMany({
+      where: { mediaId: videoId, mediaType: 'VIDEO', vocabularyId },
+    })
+  }
+
   updateVideo(videoId: string, data: UpdateVideoBodyType) {
     const { topicIds: _topicIds, ...videoData } = data
     return this.prismaService.video.update({

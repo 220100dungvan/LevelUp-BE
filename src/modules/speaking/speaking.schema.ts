@@ -24,7 +24,14 @@ export const GetSpeakingTopicsResSchema = z.object({
 export const CreateSessionBodySchema = z
   .object({
     roomName: z.string().min(3).max(100),
-    level: z.enum([Level.Advanced, Level.Intermediate, Level.Beginner]),
+    level: z.enum([
+      Level.Beginner,
+      Level.Elementary,
+      Level.Intermediate,
+      Level.Upper_Inter,
+      Level.Advanced,
+      Level.Mastery,
+    ]),
     maxMembers: z.number().int().min(2).max(5).default(2),
     isPrivate: z.boolean().default(false),
     passcode: z.string().min(4).max(20).optional(),
@@ -48,7 +55,9 @@ export const JoinSessionBodySchema = z
   .strict()
 
 export const GetSessionsQuerySchema = z.object({
-  level: z.enum([Level.Advanced, Level.Intermediate, Level.Beginner]).optional(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .optional(),
   topicIds: z
     .string()
     .optional()
@@ -59,7 +68,14 @@ export const GetSessionsQuerySchema = z.object({
 
 export const JoinQueueBodySchema = z
   .object({
-    level: z.enum([Level.Advanced, Level.Intermediate, Level.Beginner]),
+    level: z.enum([
+      Level.Beginner,
+      Level.Elementary,
+      Level.Intermediate,
+      Level.Upper_Inter,
+      Level.Advanced,
+      Level.Mastery,
+    ]),
     topicIds: z.array(z.string().uuid()).max(5),
   })
   .strict()
@@ -76,7 +92,14 @@ export const SessionDetailSchema = z.object({
   id: z.string().uuid(),
   roomName: z.string(),
   hostId: z.string().uuid(),
-  level: z.enum([Level.Advanced, Level.Intermediate, Level.Beginner]),
+  level: z.enum([
+    Level.Beginner,
+    Level.Elementary,
+    Level.Intermediate,
+    Level.Upper_Inter,
+    Level.Advanced,
+    Level.Mastery,
+  ]),
   maxMembers: z.number(),
   isPrivate: z.boolean(),
   status: z.enum([SpeakingSessionStatus.WAITING, SpeakingSessionStatus.MATCHED, SpeakingSessionStatus.ENDED]),

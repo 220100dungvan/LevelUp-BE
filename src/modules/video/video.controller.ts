@@ -23,6 +23,7 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { ZodResponse } from 'nestjs-zod'
 import { VideoService } from '@/modules/video/video.service'
 import {
+  AddVideoVocabulariesBodyDTO,
   CreateVideoBodyDTO,
   CreateVideoSentenceBodyDTO,
   CreateVideoTopicBodyDTO,
@@ -132,6 +133,24 @@ export class VideoController {
   @ZodResponse({ type: MessageResDTO })
   deleteVideo(@Param('videoId', ParseUUIDPipe) videoId: string) {
     return this.videoService.deleteVideo(videoId)
+  }
+
+  @Post(':videoId/vocabularies')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: GetVideoDetailResDTO })
+  addVocabularies(@Param('videoId', ParseUUIDPipe) videoId: string, @Body() body: AddVideoVocabulariesBodyDTO) {
+    return this.videoService.addVocabularies(videoId, body)
+  }
+
+  @Delete(':videoId/vocabularies/:vocabularyId')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ZodResponse({ type: MessageResDTO })
+  removeVocabulary(
+    @Param('videoId', ParseUUIDPipe) videoId: string,
+    @Param('vocabularyId', ParseUUIDPipe) vocabularyId: string,
+  ) {
+    return this.videoService.removeVocabulary(videoId, vocabularyId)
   }
 
   @Post(':videoId/sentences')

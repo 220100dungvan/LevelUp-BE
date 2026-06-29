@@ -38,7 +38,9 @@ const VocabularyListSummarySchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string().nullable(),
-  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).nullable(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
   isPublic: z.boolean(),
   totalWords: z.number().int(),
   topic: z.object({

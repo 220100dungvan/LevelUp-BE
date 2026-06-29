@@ -64,7 +64,9 @@ export const VocabularySchema = z.object({
   audioUrlUk: z.string().nullable(),
   audioUrlUs: z.string().nullable(),
   audioExampleUrl: z.string().nullable(),
-  level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).nullable(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
 })
 
 export const CreateVocabularyBodySchema = z
@@ -90,7 +92,9 @@ export const CreateVocabularyBodySchema = z
     meaningEn: z.string().optional(),
     exampleEn: z.string().optional(),
     exampleVi: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
   })
   .strict()
 
@@ -99,7 +103,9 @@ export const CreateVocabularyResSchema = VocabularySchema
 export const GetListsQuerySchema = z
   .object({
     topicId: z.string().uuid().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(20),
     search: z.string().optional(),
@@ -110,7 +116,9 @@ export const VocabularyListSummarySchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string().nullable(),
-  level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).nullable(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
   isPublic: z.boolean(),
   createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
   totalWords: z.number().int(),
@@ -141,7 +149,9 @@ export const CreateVocabularyListBodySchema = z
     topicId: z.string().uuid(),
     name: z.string().min(1).max(200),
     description: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     isPublic: z.boolean().default(true),
   })
   .strict()
@@ -150,7 +160,9 @@ export const GetListDetailResSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string().nullable(),
-  level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).nullable(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
   isPublic: z.boolean(),
   topic: z.object({
     id: z.string().uuid(),
@@ -172,7 +184,9 @@ export const UpdateVocabularyListBodySchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     isPublic: z.boolean().optional(),
     topicId: z.string().uuid().optional(),
   })
@@ -220,7 +234,14 @@ export const AddNewVocabularyToListBodySchema = z
     ]),
     exampleEn: z.string().optional(),
     exampleVi: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]),
+    level: z.enum([
+      Level.Beginner,
+      Level.Elementary,
+      Level.Intermediate,
+      Level.Upper_Inter,
+      Level.Advanced,
+      Level.Mastery,
+    ]),
   })
   .strict()
 
@@ -307,7 +328,9 @@ export const GetWordsAdminQuerySchema = z
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(10),
     search: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     partOfSpeech: z
       .enum([
         PART_OF_SPEECH.NOUN,
@@ -355,7 +378,9 @@ export const VocabularyWordAdminSchema = z.object({
   audioUrlUk: z.string().nullable(),
   audioUrlUs: z.string().nullable(),
   audioExampleUrl: z.string().nullable(),
-  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).nullable(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
   createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
 })
 
@@ -367,8 +392,11 @@ export const VocabularyWordsStatsSchema = z.object({
   hasIpa: z.number().int(),
   byLevel: z.object({
     BEGINNER: z.number().int(),
+    ELEMENTARY: z.number().int(),
     INTERMEDIATE: z.number().int(),
+    UPPER_INTER: z.number().int(),
     ADVANCED: z.number().int(),
+    MASTERY: z.number().int(),
   }),
   byPartOfSpeech: z.record(z.string(), z.number().int()),
 })
@@ -411,7 +439,10 @@ export const UpdateVocabularyBodySchema = z
     meaningEn: z.string().nullable().optional(),
     exampleEn: z.string().nullable().optional(),
     exampleVi: z.string().nullable().optional(),
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).nullable().optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .nullable()
+      .optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -434,7 +465,9 @@ export const CreateLearnerListBodySchema = z
     topicId: z.string().uuid(),
     name: z.string().min(1).max(200),
     description: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
   })
   .strict()
 
@@ -442,7 +475,9 @@ export const UpdateLearnerListBodySchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
-    level: z.enum([Level.Beginner, Level.Advanced, Level.Intermediate]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     topicId: z.string().uuid().optional(),
   })
   .strict()

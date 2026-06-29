@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod'
 import {
+  AddVideoVocabulariesBodySchema,
   CreateVideoBodySchema,
   CreateVideoSentenceBodySchema,
   CreateVideoTopicBodySchema,
@@ -32,3 +33,4 @@ export class UpdateVideoSentenceBodyDTO extends createZodDto(UpdateVideoSentence
 export class ProcessYoutubeVideoUrlBodyDTO extends createZodDto(ProcessYoutubeVideoUrlBodySchema) {}
 export class ProcessedVideoSentenceDTO extends createZodDto(ProcessedVideoSentenceSchema) {}
 export class ProcessYoutubeVideoUrlResDTO extends createZodDto(ProcessYoutubeVideoUrlResSchema) {}
+export class AddVideoVocabulariesBodyDTO extends createZodDto(AddVideoVocabulariesBodySchema) {}

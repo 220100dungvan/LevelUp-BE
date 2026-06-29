@@ -12,7 +12,9 @@ export const UserProfileSchema = z.object({
   totpEnabled: z.boolean(),
   gender: z.enum([GENDER.MALE, GENDER.FEMALE, GENDER.OTHER]).nullable(),
   dateOfBirth: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()).nullable(),
-  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).nullable(),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
   isOnboarded: z.boolean(),
   role: z.enum([UserRole.LEARNER, UserRole.TEACHER, UserRole.ADMIN]),
   status: z.enum([UserStatus.ACTIVE, UserStatus.INACTIVE, UserStatus.BLOCKED]),
@@ -25,7 +27,14 @@ export const OnboardingBodySchema = z
   .object({
     gender: z.enum([GENDER.MALE, GENDER.FEMALE, GENDER.OTHER]),
     dateOfBirth: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+    level: z.enum([
+      Level.Beginner,
+      Level.Elementary,
+      Level.Intermediate,
+      Level.Upper_Inter,
+      Level.Advanced,
+      Level.Mastery,
+    ]),
   })
   .strict()
 

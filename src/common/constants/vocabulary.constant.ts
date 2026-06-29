@@ -18,8 +18,11 @@ export const VOCAB_REVIEW_INTERVAL_DAYS: Record<VocabStatusType, number> = {
 
 export const Level = {
   Beginner: 'BEGINNER',
+  Elementary: 'ELEMENTARY',
   Intermediate: 'INTERMEDIATE',
+  Upper_Inter: 'UPPER_INTER',
   Advanced: 'ADVANCED',
+  Mastery: 'MASTERY',
 } as const
 
 export type LevelType = (typeof Level)[keyof typeof Level]
