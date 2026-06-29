@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ProfileRepository } from './profile.repo'
-import { OnboardingBodyType } from '@/modules/profile/profile.schema'
+import { OnboardingBodyType, UpdateLevelBodyType } from '@/modules/profile/profile.schema'
 
 @Injectable()
 export class ProfileService {
@@ -20,5 +20,13 @@ export class ProfileService {
       throw new NotFoundException('Error.UserNotFound')
     }
     return this.profileRepository.completeOnboarding(userId, body)
+  }
+
+  async updateLevel(userId: string, body: UpdateLevelBodyType) {
+    const profile = await this.profileRepository.findProfileByUserId(userId)
+    if (!profile) {
+      throw new NotFoundException('Error.UserNotFound')
+    }
+    return this.profileRepository.updateLevel(userId, body)
   }
 }

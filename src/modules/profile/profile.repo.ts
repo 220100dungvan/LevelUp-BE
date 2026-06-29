@@ -1,7 +1,7 @@
 import { PrismaService } from '@/common/services/prisma.service'
 import { Injectable } from '@nestjs/common'
 import { User } from '@/generated/prisma/client'
-import { OnboardingBodyType } from '@/modules/profile/profile.schema'
+import { OnboardingBodyType, UpdateLevelBodyType } from '@/modules/profile/profile.schema'
 
 @Injectable()
 export class ProfileRepository {
@@ -29,6 +29,17 @@ export class ProfileRepository {
         level: data.level,
         isOnboarded: true,
       },
+      omit: {
+        password: true,
+        totpSecret: true,
+      },
+    })
+  }
+
+  async updateLevel(userId: string, data: UpdateLevelBodyType): Promise<Omit<User, 'password' | 'totpSecret'>> {
+    return this.prismaService.user.update({
+      where: { id: userId },
+      data: { level: data.level },
       omit: {
         password: true,
         totpSecret: true,
