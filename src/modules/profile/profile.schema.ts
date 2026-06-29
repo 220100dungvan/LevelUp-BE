@@ -42,5 +42,19 @@ export const OnboardingResSchema = UserProfileSchema
 
 export type UserProfileType = z.infer<typeof UserProfileSchema>
 
+export const UpdateLevelBodySchema = z
+  .object({
+    level: z.enum([
+      Level.Beginner,
+      Level.Elementary,
+      Level.Intermediate,
+      Level.Upper_Inter,
+      Level.Advanced,
+      Level.Mastery,
+    ]),
+  })
+  .strict()
+
 export type OnboardingBodyType = z.infer<typeof OnboardingBodySchema>
 export type OnboardingResType = z.infer<typeof OnboardingResSchema>
+export type UpdateLevelBodyType = z.infer<typeof UpdateLevelBodySchema>
