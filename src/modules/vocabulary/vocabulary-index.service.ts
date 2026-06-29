@@ -1,4 +1,5 @@
 import { ElasticsearchService } from '@/common/services/elasticsearch.service'
+import { PrismaService } from '@/common/services/prisma.service'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { SearchVocabularyQueryType } from '@/modules/vocabulary/vocabulary.schema'
 import { LevelType, PartOfSpeechType } from '@/common/constants/vocabulary.constant'
@@ -28,10 +29,14 @@ export interface VocabularyDocument {
 export class VocabularyIndexService implements OnModuleInit {
   private readonly logger = new Logger(VocabularyIndexService.name)
 
-  constructor(private readonly esService: ElasticsearchService) {}
+  constructor(
+    private readonly esService: ElasticsearchService,
+    private readonly prismaService: PrismaService,
+  ) {}
 
   async onModuleInit() {
     await this.ensureIndex()
+    await this.seedIfEmpty()
   }
 
   // Index management
@@ -77,6 +82,48 @@ export class VocabularyIndexService implements OnModuleInit {
       }
     } catch (err) {
       this.logger.warn(`Could not ensure ES index: ${(err as Error).message}`)
+    }
+  }
+
+  private async seedIfEmpty() {
+    try {
+      const available = await this.esService.isAvailable()
+      if (!available) return
+
+      const { count } = await this.esService.client.count({ index: VOCABULARY_INDEX })
+      if (count > 0) return
+
+      const vocabularies = await this.prismaService.vocabulary.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          word: true,
+          phoneticUk: true,
+          phoneticUs: true,
+          partOfSpeech: true,
+          meaningVi: true,
+          meaningEn: true,
+          exampleEn: true,
+          exampleVi: true,
+          imageUrl: true,
+          audioUrlUk: true,
+          audioUrlUs: true,
+          audioExampleUrl: true,
+          level: true,
+        },
+      })
+
+      if (vocabularies.length === 0) return
+
+      const docs: VocabularyDocument[] = vocabularies.map((v) => ({
+        ...v,
+        deletedAt: null,
+      })) as VocabularyDocument[]
+
+      await this.bulkIndex(docs)
+      this.logger.log(`Seeded ${docs.length} vocabularies into Elasticsearch`)
+    } catch (err) {
+      this.logger.warn(`ES seed failed: ${(err as Error).message}`)
     }
   }
 

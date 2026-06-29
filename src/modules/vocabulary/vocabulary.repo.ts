@@ -160,7 +160,7 @@ export class VocabularyRepository {
     ])
 
     // Normalize byLevel thành object cố định
-    const byLevel = { BEGINNER: 0, INTERMEDIATE: 0, ADVANCED: 0 }
+    const byLevel = { BEGINNER: 0, ELEMENTARY: 0, INTERMEDIATE: 0, UPPER_INTER: 0, ADVANCED: 0, MASTERY: 0 }
     for (const row of byLevelRaw) {
       if (row.level) byLevel[row.level as keyof typeof byLevel] = row._count._all
     }

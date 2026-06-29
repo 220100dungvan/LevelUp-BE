@@ -40,7 +40,14 @@ export const UpdateArticleTopicBodySchema = z
 
 export const ArticleSchema = z.object({
   id: z.string().uuid(),
-  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+  level: z.enum([
+    Level.Beginner,
+    Level.Elementary,
+    Level.Intermediate,
+    Level.Upper_Inter,
+    Level.Advanced,
+    Level.Mastery,
+  ]),
   title: z.string(),
   content: z.string(),
   contentVi: z.string().nullable(),
@@ -58,7 +65,14 @@ export const ArticleSchema = z.object({
 
 export const ArticleListItemSchema = z.object({
   id: z.string().uuid(),
-  level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+  level: z.enum([
+    Level.Beginner,
+    Level.Elementary,
+    Level.Intermediate,
+    Level.Upper_Inter,
+    Level.Advanced,
+    Level.Mastery,
+  ]),
   title: z.string(),
   thumbnailUrl: z.string().nullable(),
   sourceUrl: z.string().nullable(),
@@ -90,7 +104,9 @@ export const GetArticlesQuerySchema = z
         const arr = Array.isArray(val) ? val : val.split(',')
         return arr.map((s) => s.trim()).filter(Boolean)
       }),
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     status: z.enum([ArticleStatus.DRAFT, ArticleStatus.ARCHIVED, ArticleStatus.PUBLISHED]).optional(),
     search: z.string().optional(),
     page: z.coerce.number().int().positive().optional().default(1),
@@ -280,7 +296,9 @@ export const ArticleProgressResSchema = z.object({
 
 export const UpdateArticleBodySchema = z
   .object({
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     title: z.string().min(1).max(500).optional(),
     content: z.string().min(1).optional(),
     contentVi: z.string().optional(),
@@ -387,7 +405,9 @@ export const CreateArticleVocabularySchema = z
     audioUrlUk: z.string().url().optional(),
     audioUrlUs: z.string().url().optional(),
     audioExampleUrl: z.string().url().optional(),
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]).optional(),
+    level: z
+      .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+      .optional(),
     synonymIds: z.array(z.string().uuid()).optional().default([]),
     antonymIds: z.array(z.string().uuid()).optional().default([]),
   })
@@ -395,7 +415,14 @@ export const CreateArticleVocabularySchema = z
 
 export const CreateArticleBodySchema = z
   .object({
-    level: z.enum([Level.Beginner, Level.Intermediate, Level.Advanced]),
+    level: z.enum([
+      Level.Beginner,
+      Level.Elementary,
+      Level.Intermediate,
+      Level.Upper_Inter,
+      Level.Advanced,
+      Level.Mastery,
+    ]),
     title: z.string().min(1).max(500),
     content: z.string().min(1),
     contentVi: z.string().optional(),

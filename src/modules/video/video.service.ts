@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException, UnprocessableEntityException } f
 import { VideoRepository } from '@/modules/video/video.repo'
 import { Innertube } from 'youtubei.js'
 import {
+  AddVideoVocabulariesBodyType,
   CreateVideoBodyType,
   CreateVideoSentenceBodyType,
   CreateVideoTopicBodyType,
@@ -542,6 +543,28 @@ ${JSON.stringify(inputItems)}`,
     if (!existing) throw new NotFoundException('Error.VideoNotFound')
     await this.videoRepository.softDeleteVideo(videoId)
     return { message: 'Xóa video thành công' }
+  }
+
+  async addVocabularies(videoId: string, body: AddVideoVocabulariesBodyType) {
+    const video = await this.videoRepository.findVideoById(videoId)
+    if (!video) throw new NotFoundException('Error.VideoNotFound')
+
+    const vocabularyIds = [...new Set(body.vocabularyIds)]
+    const existingCount = await this.videoRepository.countVocabularyByIds(vocabularyIds)
+    if (existingCount !== vocabularyIds.length) {
+      throw new NotFoundException('Error.VocabularyNotFound')
+    }
+
+    await this.videoRepository.linkVideoVocabularies(videoId, vocabularyIds)
+    return this.getVideoById(videoId)
+  }
+
+  async removeVocabulary(videoId: string, vocabularyId: string) {
+    const video = await this.videoRepository.findVideoById(videoId)
+    if (!video) throw new NotFoundException('Error.VideoNotFound')
+
+    await this.videoRepository.unlinkVideoVocabulary(videoId, vocabularyId)
+    return { message: 'Xóa từ vựng khỏi video thành công' }
   }
 
   async createSentence(videoId: string, body: CreateVideoSentenceBodyType) {

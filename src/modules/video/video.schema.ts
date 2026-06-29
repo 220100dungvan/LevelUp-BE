@@ -1,6 +1,14 @@
+import { Level } from '@/common/constants/vocabulary.constant'
 import z from 'zod'
 
-const LevelEnum = z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED'])
+const LevelEnum = z.enum([
+  Level.Beginner,
+  Level.Elementary,
+  Level.Intermediate,
+  Level.Upper_Inter,
+  Level.Advanced,
+  Level.Mastery,
+])
 
 export const VideoTopicSchema = z.object({
   id: z.string().uuid(),
@@ -246,6 +254,17 @@ export const GetVideoDetailResSchema = z.object({
   recommendedVideos: z.array(VideoListItemSchema.pick({ id: true, title: true, thumbnailUrl: true, level: true })),
 })
 
+export const AddVideoVocabulariesBodySchema = z
+  .object({
+    vocabularyIds: z.array(z.string().uuid()).min(1),
+  })
+  .strict()
+
+export const RemoveVideoVocabularyParamsSchema = z.object({
+  videoId: z.string().uuid(),
+  vocabularyId: z.string().uuid(),
+})
+
 export type GetVideosQueryType = z.infer<typeof GetVideosQuerySchema>
 export type GetVideosResType = z.infer<typeof GetVideosResSchema>
 export type GetVideoDetailResType = z.infer<typeof GetVideoDetailResSchema>
@@ -257,3 +276,6 @@ export type CreateVideoSentenceBodyType = z.infer<typeof CreateVideoSentenceBody
 export type UpdateVideoSentenceBodyType = z.infer<typeof UpdateVideoSentenceBodySchema>
 export type ProcessYoutubeVideoUrlBodyType = z.infer<typeof ProcessYoutubeVideoUrlBodySchema>
 export type GetVideoTopicsResType = z.infer<typeof GetVideoTopicsResSchema>
+
+export type AddVideoVocabulariesBodyType = z.infer<typeof AddVideoVocabulariesBodySchema>
+export type RemoveVideoVocabularyParamsType = z.infer<typeof RemoveVideoVocabularyParamsSchema>
