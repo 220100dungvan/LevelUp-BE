@@ -5,6 +5,7 @@ import { seedSpeakingTopics } from './seeds/speaking-topics.seed'
 import { seedVocabularyLists } from './seeds/vocabulary-lists.seed'
 import { seedVocabularies } from './seeds/vocabularies.seed'
 import { seedVideoTopics } from './seeds/video-topic.seed'
+import { seedWords } from './seeds/words.seed'
 
 async function main() {
   console.log('Starting database seeding...\n')
@@ -16,6 +17,7 @@ async function main() {
     await seedVideoTopics()
     await seedVocabularyLists()
     await seedVocabularies()
+    await seedWords()
 
     console.log('\n Database seeding completed successfully!')
   } catch (error) {
