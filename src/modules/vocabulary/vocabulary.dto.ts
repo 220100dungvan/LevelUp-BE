@@ -30,6 +30,8 @@ import {
   VocabularyWordsStatsSchema,
   CreateLearnerListBodySchema,
   UpdateLearnerListBodySchema,
+  GetDeletedWordsQuerySchema,
+  GetDeletedWordsResSchema,
 } from '@/modules/vocabulary/vocabulary.schema'
 import { createZodDto } from 'nestjs-zod'
 
@@ -94,3 +96,7 @@ export class VocabularyWordsStatsDTO extends createZodDto(VocabularyWordsStatsSc
 export class CreateLearnerListBodyDTO extends createZodDto(CreateLearnerListBodySchema) {}
 
 export class UpdateLearnerListBodyDTO extends createZodDto(UpdateLearnerListBodySchema) {}
+
+export class GetDeletedWordsQueryDTO extends createZodDto(GetDeletedWordsQuerySchema) {}
+
+export class GetDeletedWordsResDTO extends createZodDto(GetDeletedWordsResSchema) {}

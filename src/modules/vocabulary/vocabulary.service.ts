@@ -495,12 +495,29 @@ export class VocabularyService {
     })
   }
 
-  // PATCH /admin/words/:id — cập nhật thông tin word (text fields)
-  async updateVocabulary(wordId: string, body: UpdateVocabularyBodyType) {
+  // PATCH /admin/words/:id — cập nhật thông tin word (có thể kèm image)
+  async updateVocabulary(wordId: string, body: UpdateVocabularyBodyType, image?: UploadedFileData) {
     const word = await this.vocabularyRepository.findVocabularyById(wordId)
     if (!word) throw new NotFoundException('Error.VocabularyNotFound')
 
-    return this.vocabularyRepository.updateVocabulary(wordId, body)
+    let imageUrl: string | undefined
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image, envConfig.CLOUDINARY_VOCABULARY_IMAGE_FOLDER)
+    }
+
+    return this.vocabularyRepository.updateVocabulary(wordId, body, imageUrl)
+  }
+
+  getDeletedWordsForAdmin(query: { page: number; limit: number; search?: string }) {
+    return this.vocabularyRepository.findDeletedWordsForAdmin(query)
+  }
+
+  async restoreVocabulary(wordId: string) {
+    try {
+      return await this.vocabularyRepository.restoreVocabulary(wordId)
+    } catch {
+      throw new NotFoundException('Error.VocabularyNotFound')
+    }
   }
 
   // DELETE /admin/words/:id — soft delete word

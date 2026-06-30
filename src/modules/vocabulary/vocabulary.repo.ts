@@ -170,11 +170,65 @@ export class VocabularyRepository {
     return { total, hasAudio, hasImage, hasIpa, byLevel, byPartOfSpeech }
   }
 
-  // Cập nhật thông tin word (không bao gồm image — dùng endpoint riêng)
-  async updateVocabulary(id: string, data: UpdateVocabularyBodyType) {
+  async updateVocabulary(id: string, data: UpdateVocabularyBodyType, imageUrl?: string) {
     return this.prismaService.vocabulary.update({
       where: { id },
-      data,
+      data: { ...data, ...(imageUrl !== undefined && { imageUrl }) },
+    })
+  }
+
+  async findDeletedWordsForAdmin(query: { page: number; limit: number; search?: string }) {
+    const { page, limit, search } = query
+
+    const where = {
+      deletedAt: { not: null },
+      ...(search?.trim()
+        ? {
+            OR: [
+              { word: { contains: search.trim(), mode: 'insensitive' as const } },
+              { meaningVi: { contains: search.trim(), mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    }
+
+    const [words, total] = await Promise.all([
+      this.prismaService.vocabulary.findMany({
+        where,
+        orderBy: { deletedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          word: true,
+          meaningVi: true,
+          partOfSpeech: true,
+          level: true,
+          imageUrl: true,
+          deletedAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prismaService.vocabulary.count({ where }),
+    ])
+
+    return {
+      data: words,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    }
+  }
+
+  findDeletedVocabularyById(id: string) {
+    return this.prismaService.vocabulary.findUnique({
+      where: { id },
+      select: { id: true, deletedAt: true },
+    })
+  }
+
+  async restoreVocabulary(id: string) {
+    return this.prismaService.vocabulary.update({
+      where: { id },
+      data: { deletedAt: null },
     })
   }
 
