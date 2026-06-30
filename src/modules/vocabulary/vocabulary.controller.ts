@@ -32,6 +32,8 @@ import {
   DeleteVocabularyResDTO,
   CreateLearnerListBodyDTO,
   UpdateLearnerListBodyDTO,
+  GetDeletedWordsQueryDTO,
+  GetDeletedWordsResDTO,
 } from '@/modules/vocabulary/vocabulary.dto'
 import { VocabularyService } from '@/modules/vocabulary/vocabulary.service'
 import {
@@ -242,12 +244,32 @@ export class VocabularyController {
     return this.vocabularyService.getWordsForAdmin(query)
   }
 
-  // Chỉnh sửa thông tin text của word (không bao gồm image)
-  @Patch(':id')
+  // Lấy danh sách từ đã xóa (trash)
+  @Get('words/trash')
+  @Roles(UserRole.ADMIN)
+  @ZodResponse({ type: GetDeletedWordsResDTO })
+  getDeletedWords(@Query() query: GetDeletedWordsQueryDTO) {
+    return this.vocabularyService.getDeletedWordsForAdmin(query)
+  }
+
+  // Khôi phục từ đã xóa
+  @Patch(':id/restore')
   @Roles(UserRole.ADMIN)
   @ZodResponse({ type: CreateVocabularyResDTO })
-  updateVocabulary(@Param('id') id: string, @Body() body: UpdateVocabularyBodyDTO) {
-    return this.vocabularyService.updateVocabulary(id, body)
+  restoreVocabulary(@Param('id') id: string) {
+    return this.vocabularyService.restoreVocabulary(id)
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('image'))
+  @ZodResponse({ type: CreateVocabularyResDTO })
+  updateVocabulary(
+    @Param('id') id: string,
+    @Body() body: UpdateVocabularyBodyDTO,
+    @UploadedFile(optionalImageFileValidationPipe) image?: UploadedFileData,
+  ) {
+    return this.vocabularyService.updateVocabulary(id, body, image)
   }
 
   // Soft delete word; word vẫn còn trong list items hiện có nhưng sẽ ẩn với user

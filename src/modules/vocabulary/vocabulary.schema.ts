@@ -511,3 +511,52 @@ export type GetLearningProgressOverviewQueryType = z.infer<typeof GetLearningPro
 export type SearchVocabularyQueryType = z.infer<typeof SearchVocabularyQuerySchema>
 export type AddItemsByIdsBodyType = z.infer<typeof AddItemsByIdsBodySchema>
 export type AddNewVocabularyToListBodyType = z.infer<typeof AddNewVocabularyToListBodySchema>
+
+// Query cho GET /vocabularies/words/trash
+export const GetDeletedWordsQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    search: z.string().optional(),
+  })
+  .strict()
+
+// Shape của một word trong trash
+export const DeletedVocabularyWordSchema = z.object({
+  id: z.string().uuid(),
+  word: z.string(),
+  meaningVi: z.string(),
+  partOfSpeech: z.enum([
+    PART_OF_SPEECH.NOUN,
+    PART_OF_SPEECH.VERB,
+    PART_OF_SPEECH.ADJECTIVE,
+    PART_OF_SPEECH.ADVERB,
+    PART_OF_SPEECH.PRONOUN,
+    PART_OF_SPEECH.PREPOSITION,
+    PART_OF_SPEECH.CONJUNCTION,
+    PART_OF_SPEECH.INTERJECTION,
+    PART_OF_SPEECH.DETERMINER,
+    PART_OF_SPEECH.NUMERAL,
+    PART_OF_SPEECH.PHRASE,
+    PART_OF_SPEECH.OTHER,
+  ]),
+  level: z
+    .enum([Level.Beginner, Level.Elementary, Level.Intermediate, Level.Upper_Inter, Level.Advanced, Level.Mastery])
+    .nullable(),
+  imageUrl: z.string().nullable(),
+  deletedAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+  createdAt: z.preprocess((val) => (val instanceof Date ? val.toISOString() : val), z.string().datetime()),
+})
+
+// Response của GET /vocabularies/words/trash
+export const GetDeletedWordsResSchema = z.object({
+  data: z.array(DeletedVocabularyWordSchema),
+  pagination: z.object({
+    page: z.number().int(),
+    limit: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
+})
+
+export type GetDeletedWordsQueryType = z.infer<typeof GetDeletedWordsQuerySchema>
